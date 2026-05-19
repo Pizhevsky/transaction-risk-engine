@@ -1,0 +1,13 @@
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.angular
+.git
+.gitignore
+.vs
+.idea
+.vscode
+.DS_Store
+TestResults
+coverage

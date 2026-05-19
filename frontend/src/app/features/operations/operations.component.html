@@ -1,0 +1,114 @@
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Operations</p>
+    <h2>Runtime status</h2>
+    <p class="subtle">Readiness, outbox backlog, default rules, and evaluation jobs.</p>
+  </div>
+  <div class="header-actions">
+    @if (lastRefreshedAt(); as refreshedAt) {
+      <span class="last-refresh">Last refreshed {{ refreshedAt | date:'mediumTime' }}</span>
+    }
+    <button type="button" (click)="refresh()" [disabled]="evaluating()" [attr.aria-busy]="loading()">
+      Refresh
+    </button>
+  </div>
+</header>
+
+@if (error()) {
+  <p class="status error">{{ error() }}</p>
+}
+@if (evaluationMessage()) {
+  <p class="status success">{{ evaluationMessage() }}</p>
+}
+
+@if (health(); as h) {
+  <section class="status-grid">
+    <article class="card metric">
+      <span>Status</span>
+      <strong>{{ h.status }}</strong>
+      <small>Database: {{ h.database }}</small>
+    </article>
+    <article class="card metric">
+      <span>Risk rules</span>
+      <strong>{{ h.riskRules ?? 'n/a' }}</strong>
+      <small>Bootstrapped independently from demo data</small>
+    </article>
+    <article class="card metric">
+      <span>Outbox pending</span>
+      <strong>{{ h.outbox.pending }}</strong>
+      <small>Processing: {{ h.outbox.processing ?? 0 }}</small>
+    </article>
+    <article class="card metric">
+      <span>Outbox failed</span>
+      <strong>{{ h.outbox.failed }}</strong>
+      <small>Oldest pending: {{ h.outbox.oldestPendingAgeSeconds ?? 0 }}s</small>
+    </article>
+  </section>
+} @else {
+  <section class="card status-placeholder">
+    Runtime status will appear after the API responds.
+  </section>
+}
+
+<section class="card evaluation">
+  <div class="section-heading">
+    <h3>Manual rule evaluation</h3>
+    <p class="subtle">Reapply current rule weights to recent stored risk events. This is intentionally separate from full transaction re-analysis.</p>
+  </div>
+
+  <div class="evaluation-form">
+    <label>
+      Batch size
+      <input
+        type="number"
+        min="1"
+        max="1000"
+        [(ngModel)]="evaluationBatchSize"
+        [disabled]="evaluating()" />
+    </label>
+    <label class="reason-field">
+      Reason
+      <input
+        type="text"
+        maxlength="300"
+        [(ngModel)]="evaluationReason"
+        [disabled]="evaluating()" />
+    </label>
+    <button type="button" class="primary" (click)="runEvaluate()" [disabled]="evaluating()">
+      {{ evaluating() ? 'Evaluating...' : 'Start evaluation' }}
+    </button>
+  </div>
+</section>
+
+<section class="card jobs">
+  <div class="section-heading">
+    <h3>Recent rule evaluation jobs</h3>
+    <p class="subtle">Existing risk events are evaluated using the current rule table.</p>
+  </div>
+
+  @if (jobs().length > 0) {
+    <table>
+      <caption class="sr-only">Recent rule evaluation jobs</caption>
+      <thead>
+        <tr>
+          <th>Created</th>
+          <th>Reason</th>
+          <th>Processed</th>
+          <th>Changed</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (job of jobs(); track job.id) {
+          <tr>
+            <td>{{ job.createdAt | date:'medium' }}</td>
+            <td>{{ job.reason }}</td>
+            <td>{{ job.processedCount }} / {{ job.requestedBatchSize }}</td>
+            <td>{{ job.changedCount }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else {
+    <p class="subtle">No evaluation jobs yet.</p>
+  }
+</section>

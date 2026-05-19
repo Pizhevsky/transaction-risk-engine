@@ -1,0 +1,92 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.graph-section {
+  margin: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.graph-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex: 0 0 auto;
+  margin-bottom: 0.55rem;
+}
+
+h4,
+p {
+  margin: 0;
+}
+
+p {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.graph-summary {
+  flex: 0 0 auto;
+  max-height: 9rem;
+  overflow: auto;
+}
+
+.graph-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.graph {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #f0f7ff;
+  overflow: hidden;
+}
+
+.paths {
+  margin-bottom: 0.7rem;
+  padding: 0.7rem;
+  border-radius: 14px;
+  background: var(--color-warning-soft);
+  color: #8a4700;
+}
+
+.paths p {
+  color: #8a4700;
+  margin-top: 0.35rem;
+}
+
+
+.error {
+  color: var(--color-danger);
+}
+
+.graph-error {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.graph-error button {
+  padding: 0.35rem 0.75rem;
+}
+
+.graph-empty {
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 760px) {
+  .graph-summary {
+    max-height: 7rem;
+  }
+}

@@ -1,0 +1,61 @@
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Configuration</p>
+    <h2>Risk rules</h2>
+    <p class="subtle">Rules are stored in PostgreSQL and affect newly analysed transactions. Existing risk events can be evaluated after rule changes.</p>
+  </div>
+  <button type="button" (click)="evaluate()" [disabled]="evaluating()">
+    {{ evaluating() ? 'Evaluating...' : 'Evaluate recent transactions' }}
+  </button>
+</header>
+
+@if (message()) {
+  <p class="status success">{{ message() }}</p>
+}
+@if (error()) {
+  <p class="status error">{{ error() }}</p>
+}
+@if (loading()) {
+  <p class="subtle">Loading rules...</p>
+}
+
+<section class="card rules">
+  @for (rule of rules(); track rule.code) {
+    <article>
+      @if (drafts()[rule.code]; as draft) {
+      <div class="rule-main">
+        <label>
+          <span>Code</span>
+          <strong>{{ rule.code }}</strong>
+        </label>
+        <label>
+          <span>Description</span>
+          <input
+            type="text"
+            [(ngModel)]="draft.description"
+            maxlength="300" />
+        </label>
+      </div>
+      <div class="rule-controls">
+        <label>
+          <span>Weight</span>
+          <input
+            type="number"
+            [(ngModel)]="draft.weight"
+            min="0"
+            max="100" />
+        </label>
+        <label class="toggle">
+          <input
+            type="checkbox"
+            [(ngModel)]="draft.enabled" />
+          Enabled
+        </label>
+        <button type="button" (click)="save(rule.code)" [disabled]="savingCode() === rule.code">
+          {{ savingCode() === rule.code ? 'Saving...' : 'Save' }}
+        </button>
+      </div>
+      }
+    </article>
+  }
+</section>

@@ -1,0 +1,43 @@
+<section class="graph-section">
+  <div class="graph-header">
+    <div>
+      <h4>Relationship graph</h4>
+      <p>
+        @if (userName) {
+          Selected transaction graph for {{ userName }}.
+        } @else {
+          Selected transaction graph.
+        }
+      </p>
+    </div>
+  </div>
+
+  <div class="graph-summary">
+    @if (loading()) {
+      <p class="subtle">Loading graph connections...</p>
+    }
+    @if (error()) {
+      <div class="graph-error">
+        <p class="error">{{ error() }}</p>
+        <button type="button" (click)="retry()" [disabled]="loading()">Retry</button>
+      </div>
+    }
+
+    @if (!loading() && !error() && riskPaths().length === 0) {
+      <p class="subtle graph-empty">No risky relationship paths found in the bounded graph.</p>
+    }
+
+    @if (riskPaths().length > 0) {
+      <div class="paths">
+        <strong>Risk paths</strong>
+        @for (path of riskPaths(); track path) {
+          <p>{{ path }}</p>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="graph-frame">
+    <div #graphContainer class="graph"></div>
+  </div>
+</section>

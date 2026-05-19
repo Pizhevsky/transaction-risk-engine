@@ -1,0 +1,111 @@
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Simulation</p>
+    <h2>Analyse a transaction</h2>
+    <p class="subtle">Use the shared risky identifiers to trigger graph-risk signals:</p>
+    <div class="demo-strip">
+      <code>device-shared-risk-001</code>
+      <code>card-shared-risk-001</code>
+      <code>203.0.113.99</code>
+    </div>
+  </div>
+</header>
+
+<div class="grid">
+  <form class="card form" [formGroup]="form" (ngSubmit)="submit()">
+    <label>
+      User
+      <select formControlName="userId">
+        @for (user of (users$ | async) ?? []; track user.id) {
+          <option [value]="user.id">
+            {{ user.displayName }}{{ user.isFlagged ? ' - flagged' : '' }}
+          </option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Merchant
+      <input formControlName="merchant" />
+    </label>
+
+    <div class="row">
+      <label>
+        Amount
+        <input type="number" formControlName="amount" />
+      </label>
+      <label>
+        Currency
+        <input formControlName="currency" maxlength="3" />
+      </label>
+    </div>
+
+    <label>
+      Device fingerprint
+      <input formControlName="deviceFingerprint" />
+    </label>
+
+    <label>
+      IP address
+      <input formControlName="ipAddress" />
+    </label>
+
+    <div class="row">
+      <label>
+        Card fingerprint
+        <input formControlName="cardFingerprint" />
+      </label>
+      <label>
+        Last 4
+        <input formControlName="cardLast4" maxlength="4" />
+      </label>
+    </div>
+
+    <label class="checkbox">
+      <input type="checkbox" formControlName="successful" />
+      Successful transaction
+    </label>
+
+    <button class="primary" type="submit" [disabled]="form.invalid || analysing()">
+      {{ analysing() ? 'Analysing...' : 'Analyse' }}
+    </button>
+  </form>
+
+  <aside class="card result current-result" aria-live="polite">
+    <p class="eyebrow">Current result</p>
+    @if (analysing()) {
+      <p class="analysis-state">Analysing transaction...</p>
+    }
+    @if (errorMessage()) {
+      <p class="error">{{ errorMessage() }}</p>
+    }
+
+    @if (result(); as item) {
+      <div class="decision-row">
+        <strong>{{ item.riskScore }}/100</strong>
+        <app-decision-badge [decision]="item.decision" />
+      </div>
+
+      <h3>{{ item.userName }}</h3>
+      <p>{{ item.currency }} {{ item.amount | number:'1.2-2' }} at {{ item.merchant }}</p>
+
+      <h4>Signals</h4>
+      @for (signal of item.signals; track signal.code) {
+        <div class="signal">
+          <strong>+{{ signal.score }} {{ signal.code }}</strong>
+          @if (signal.baseScore !== signal.score) {
+            <span class="score-note">base {{ signal.baseScore }}</span>
+          }
+          <p>{{ signal.reason }}</p>
+          <small>{{ signal.evidence }}</small>
+        </div>
+      }
+    } @else {
+      @if (!analysing() && !errorMessage()) {
+        <p class="subtle">
+          Run an analysis to see the score, decision, and contributing signals here.
+        </p>
+      }
+    }
+  </aside>
+</div>

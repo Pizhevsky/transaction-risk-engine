@@ -1,0 +1,75 @@
+@if (detail; as item) {
+  <aside
+    class="detail card"
+    aria-labelledby="selected-transaction-heading">
+    @if (loading) {
+      <p class="subtle">Loading transaction detail...</p>
+    }
+    @if (error) {
+      <p class="error">{{ error }}</p>
+    }
+    <div class="detail-header">
+      <div>
+        <p class="eyebrow">Selected transaction</p>
+        <h3 id="selected-transaction-heading">{{ item.userName }}</h3>
+      </div>
+      <app-decision-badge [decision]="item.decision" />
+    </div>
+
+    <div class="score-box">
+      <span>Risk score</span>
+      <strong>{{ item.riskScore }}/100</strong>
+    </div>
+
+    <dl>
+      <div><dt>Amount</dt><dd>{{ item.currency }} {{ item.amount | number:'1.2-2' }}</dd></div>
+      <div>
+        <dt>Status</dt>
+        <dd>
+          <span
+            class="payment-status"
+            [class.success]="item.successful"
+            [class.failed]="!item.successful">
+            {{ item.successful ? 'Successful' : 'Failed' }}
+          </span>
+        </dd>
+      </div>
+      <div><dt>Merchant</dt><dd>{{ item.merchant }}</dd></div>
+      <div><dt>Created</dt><dd>{{ item.createdAt | date:'medium' }}</dd></div>
+      <div><dt>Device</dt><dd>{{ item.deviceFingerprint }}</dd></div>
+      <div><dt>Card</dt><dd>{{ item.cardFingerprint }}</dd></div>
+      <div><dt>IP</dt><dd>{{ item.ipAddress }}</dd></div>
+    </dl>
+
+    <div class="risk-section-header">
+      <h4>Risk signals</h4>
+      <button
+        type="button"
+        class="secondary graph-open"
+        aria-haspopup="dialog"
+        (click)="viewGraph.emit()">
+        View graph
+      </button>
+    </div>
+    @for (signal of item.signals; track signal.code) {
+      <div class="signal">
+        <strong>+{{ signal.score }} {{ signal.code }}</strong>
+        @if (signal.baseScore !== signal.score) {
+          <span class="score-note">base {{ signal.baseScore }}</span>
+        }
+        <p>{{ signal.reason }}</p>
+        <small>{{ signal.evidence }}</small>
+      </div>
+    }
+  </aside>
+} @else {
+  <aside class="detail card empty">
+    @if (loading) {
+      <h3>Loading transaction</h3>
+      <p>Loading transaction detail and graph connections...</p>
+    } @else {
+      <h3>Select a transaction</h3>
+      <p>Select a row to inspect the transaction, reasons and graph connections.</p>
+    }
+  </aside>
+}

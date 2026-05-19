@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="TransactionRiskEngine.Api/TransactionRiskEngine.Api.csproj" />
+  <Project Path="TransactionRiskEngine.Tests/TransactionRiskEngine.Tests.csproj" />
+</Solution>

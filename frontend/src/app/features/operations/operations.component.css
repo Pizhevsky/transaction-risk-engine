@@ -1,0 +1,148 @@
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--color-primary-strong);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h2,
+h3 {
+  margin: 0.35rem 0 0;
+}
+
+.page-header .subtle,
+.section-heading .subtle {
+  margin-top: 0.65rem;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+
+.metric {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem 1.15rem;
+}
+
+.metric span,
+.metric small,
+.subtle {
+  color: var(--color-muted);
+}
+
+.metric strong {
+  font-size: 1.7rem;
+  color: var(--color-primary-strong);
+}
+
+.section-heading {
+  margin-bottom: 1.15rem;
+}
+
+.evaluation {
+  margin-bottom: 1.25rem;
+  padding: 1.5rem;
+}
+
+.jobs {
+  padding: 1.5rem;
+}
+
+.evaluation-form {
+  display: grid;
+  grid-template-columns: 160px minmax(220px, 1fr) auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.evaluation-form label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--color-ink);
+  font-weight: 400;
+}
+
+.evaluation-form input {
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+}
+
+.status.success {
+  color: var(--color-accent-strong);
+}
+
+.jobs table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.25rem;
+}
+
+.jobs th,
+.jobs td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.status.error {
+  color: var(--color-danger);
+}
+
+.status {
+  margin: 0 0 1rem;
+}
+
+.status-placeholder {
+  margin: 1.25rem 0;
+  padding: 1.1rem 1.25rem;
+  color: var(--color-muted);
+}
+
+@media (max-width: 1000px) {
+  .status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .evaluation-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.last-refresh {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 760px) {
+  .page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
+  }
+}

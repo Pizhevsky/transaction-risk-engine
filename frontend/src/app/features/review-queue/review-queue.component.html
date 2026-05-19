@@ -1,0 +1,156 @@
+<header class="page-header" aria-labelledby="review-queue-title">
+  <div>
+    <p class="eyebrow">Analyst dashboard</p>
+    <h2 id="review-queue-title">Transaction review queue</h2>
+    <p class="subtle">Filter recent transactions and select a row to inspect risk signals, payment status, and related connections.</p>
+  </div>
+</header>
+
+<div class="filters card" role="search" aria-label="Transaction review queue filters">
+  <label for="queue-search">
+    Search
+    <input
+      id="queue-search"
+      [formControl]="search"
+      placeholder="User, merchant, currency" />
+  </label>
+  <label for="queue-risk-level">
+    Risk level
+    <select id="queue-risk-level" [formControl]="riskLevel">
+      <option value="all">All</option>
+      <option value="approved">Approved</option>
+      <option value="review">Review</option>
+      <option value="blocked">Blocked</option>
+    </select>
+  </label>
+  <label for="queue-status">
+    Payment status
+    <select id="queue-status" [formControl]="status">
+      <option value="all">All</option>
+      <option value="success">Successful</option>
+      <option value="failed">Failed</option>
+    </select>
+  </label>
+</div>
+
+<div class="content-grid">
+  <div class="card table-card">
+    <div class="table-status">
+      @if (loading()) {
+        <span>Loading transactions...</span>
+      }
+      @if (error()) {
+        <span class="error">{{ error() }}</span>
+      }
+      @if (!loading() && !error() && totalCount() > 0) {
+        <span>Showing {{ visibleStart() }}–{{ visibleEnd() }} of {{ totalCount() }}</span>
+      }
+      @if (!loading() && !error() && totalCount() === 0) {
+        <span>No transactions match the current filters</span>
+      }
+    </div>
+    <div class="table-scroll">
+      <table>
+        <caption class="sr-only">Transactions in the review queue</caption>
+        <colgroup>
+          <col class="col-risk" />
+          <col class="col-user" />
+          <col class="col-amount" />
+          <col class="col-status" />
+          <col class="col-merchant" />
+          <col class="col-decision" />
+          <col class="col-reason" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Risk</th>
+            <th scope="col">User</th>
+            <th scope="col">Amount</th>
+            <th scope="col">Payment</th>
+            <th scope="col">Merchant</th>
+            <th scope="col">Decision</th>
+            <th scope="col">Top reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (tx of (transactions$ | async) ?? []; track tx.id) {
+            <tr
+              class="transaction-row"
+              tabindex="0"
+              [class.selected]="selectedId() === tx.id"
+              [attr.aria-current]="selectedId() === tx.id ? 'true' : null"
+              (click)="select(tx)"
+              (keydown.enter)="select(tx)"
+              (keydown.space)="selectFromKeyboard($event, tx)">
+              <td>
+                <strong class="risk-score">{{ tx.riskScore }}</strong>
+              </td>
+              <td>{{ tx.userName }}</td>
+              <td>{{ tx.currency }} {{ tx.amount | number:'1.2-2' }}</td>
+              <td>
+                <span
+                  class="payment-status"
+                  [class.success]="tx.successful"
+                  [class.failed]="!tx.successful">
+                  {{ tx.successful ? 'Successful' : 'Failed' }}
+                </span>
+              </td>
+              <td>{{ tx.merchant }}</td>
+              <td><app-decision-badge [decision]="tx.decision" /></td>
+              <td class="reason">{{ tx.topReason || 'No risk reason' }}</td>
+            </tr>
+          }
+          @if (!loading() && totalCount() === 0) {
+            <tr>
+              <td colspan="7" class="empty-row">No transactions found. Try changing the filters or analyse a new transaction.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <nav class="pagination" aria-label="Review queue pagination">
+      <button
+        type="button"
+        (click)="previousPage()"
+        [disabled]="loading() || currentPage() <= 1">Previous</button>
+      <span>Page {{ currentPage() }} of {{ totalPages() }}</span>
+      <button
+        type="button"
+        (click)="nextPage()"
+        [disabled]="loading() || currentPage() >= totalPages()">Next</button>
+    </nav>
+  </div>
+
+  <app-selected-transaction-panel
+    [detail]="selectedDetail()"
+    [loading]="detailLoading()"
+    [error]="detailError()"
+    (viewGraph)="openGraph()" />
+</div>
+
+@if (graphOpen() && selectedDetail(); as detail) {
+  <div class="modal-backdrop" (click)="closeGraph()">
+    <section
+      class="graph-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="relationship-graph-dialog-title"
+      tabindex="-1"
+      (click)="$event.stopPropagation()"
+      (keydown.escape)="closeGraph()">
+      <div class="graph-modal-header">
+        <div>
+          <p class="eyebrow">Relationship graph</p>
+          <h3 id="relationship-graph-dialog-title">{{ detail.userName }} transaction connections</h3>
+          <p class="subtle">Focused on this transaction's device, card and IP links.</p>
+        </div>
+        <button type="button" class="secondary" aria-label="Close relationship graph" (click)="closeGraph()">Close</button>
+      </div>
+      <div class="graph-modal-body">
+        <app-relationship-graph
+          [transactionId]="detail.id"
+          [userName]="detail.userName" />
+      </div>
+    </section>
+  </div>
+}
