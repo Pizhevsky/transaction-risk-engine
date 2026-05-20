@@ -61,7 +61,9 @@
             </td>
             <td>{{ tx.merchant }}</td>
             <td><app-decision-badge [decision]="tx.decision" /></td>
-            <td class="reason">{{ tx.topReason || 'No risk reason' }}</td>
+            <td class="reason-cell">
+              <span class="reason-text">{{ tx.topReason || 'No risk reason' }}</span>
+            </td>
           </tr>
         }
         @if (!loading && totalCount === 0) {

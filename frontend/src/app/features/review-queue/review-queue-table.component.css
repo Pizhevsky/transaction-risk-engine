@@ -105,8 +105,11 @@ th {
   background: var(--color-danger-soft);
 }
 
-.reason {
+.reason-cell {
   color: var(--color-muted);
+}
+
+.reason-text {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
