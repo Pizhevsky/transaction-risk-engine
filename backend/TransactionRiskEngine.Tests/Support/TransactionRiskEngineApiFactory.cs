@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
 
 namespace TransactionRiskEngine.Tests;
@@ -25,10 +27,23 @@ public sealed class TransactionRiskEngineApiFactory : WebApplicationFactory<Prog
     protected override void ConfigureWebHost(IWebHostBuilder builder) {
         builder.ConfigureAppConfiguration((_, config) => {
             config.AddInMemoryCollection(new Dictionary<string, string?> {
-                ["ConnectionStrings:RiskDb"] = _postgres.GetConnectionString(),
                 ["SeedData:Enabled"] = "true",
                 ["Outbox:Enabled"] = "false"
             });
+        });
+
+        builder.ConfigureServices(services => {
+            services.RemoveAll<IDbContextFactory<AppDbContext>>();
+            services.RemoveAll<DbContextOptions<AppDbContext>>();
+            services.RemoveAll<AppDbContext>();
+
+            services.AddDbContextFactory<AppDbContext>(options => {
+                options.UseNpgsql(_postgres.GetConnectionString());
+            });
+
+            services.AddScoped(provider =>
+                provider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext()
+            );
         });
     }
 }
