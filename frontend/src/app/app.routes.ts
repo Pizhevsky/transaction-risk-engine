@@ -21,6 +21,12 @@ export const routes: Routes = [
       .then((m) => m.RulesComponent)
   },
   {
+    path: 'fraud-cases',
+    data: { menuLabel: 'Fraud cases', menuOrder: 35 },
+    loadComponent: () => import('./features/fraud-cases/fraud-cases.component')
+      .then((m) => m.FraudCasesComponent)
+  },
+  {
     path: 'operations',
     data: { menuLabel: 'Operations', menuOrder: 40 },
     loadComponent: () => import('./features/operations/operations.component')

@@ -5,6 +5,9 @@ using TransactionRiskEngine.Api.Domain;
 namespace TransactionRiskEngine.Api.Endpoints;
 
 public static class HealthEndpoints {
+    private const int FailedOutboxReadinessThreshold = 25;
+    private const int OldestPendingReadinessThresholdSeconds = 600;
+
     public static IEndpointRouteBuilder MapHealthEndpoints(this IEndpointRouteBuilder app) {
         var health = app.MapGroup("/health").WithTags("Health");
         health.MapGet("/live", GetLiveHealth);
@@ -114,7 +117,8 @@ public static class HealthEndpoints {
     }
 
     private static bool IsOutboxDegraded(int failed, int oldestPendingAgeSeconds) {
-        return failed > 0 || oldestPendingAgeSeconds > 300;
+        return failed > FailedOutboxReadinessThreshold ||
+            oldestPendingAgeSeconds > OldestPendingReadinessThresholdSeconds;
     }
 
     private static int ToReadyStatusCode(bool isDegraded) {

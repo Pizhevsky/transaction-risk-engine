@@ -26,7 +26,7 @@ public sealed class RiskRuleEndpointIntegrationTests(TransactionRiskEngineApiFac
             new RiskEvaluationRequest(BatchSize: 25, Reason: "Integration test rule evaluation")
         );
 
-        Assert.Equal(HttpStatusCode.Accepted, evaluate.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, evaluate.StatusCode);
         var body = await evaluate.Content.ReadFromJsonAsync<JsonObject>();
         Assert.NotNull(body);
         Assert.True(body!["processedCount"]!.GetValue<int>() >= 0);

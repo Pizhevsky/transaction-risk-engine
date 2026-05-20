@@ -4,7 +4,7 @@ namespace TransactionRiskEngine.Tests;
 
 public sealed class RiskRuleApplicatorTests {
     [Fact]
-    public void Disabled_rule_suppresses_signal() {
+    public void Disabled_rule_preserves_signal_with_zero_applied_score() {
         var rules = new Dictionary<string, RiskRuleSnapshot>(StringComparer.OrdinalIgnoreCase) {
             ["NEW_DEVICE"] = new("NEW_DEVICE", "New device", 15, Enabled: false)
         };
@@ -14,7 +14,9 @@ public sealed class RiskRuleApplicatorTests {
             rules
         );
 
-        Assert.Null(result);
+        Assert.NotNull(result);
+        Assert.Equal(15, result!.BaseScore);
+        Assert.Equal(0, result.Score);
     }
 
     [Fact]

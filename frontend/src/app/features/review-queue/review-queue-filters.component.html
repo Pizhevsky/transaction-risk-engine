@@ -1,0 +1,27 @@
+<div class="filters card" role="search" aria-label="Transaction review queue filters">
+  <label for="queue-search">
+    Search
+    <input
+      id="queue-search"
+      [value]="search"
+      (input)="onSearchInput($event)"
+      placeholder="User, merchant, currency" />
+  </label>
+  <label for="queue-risk-level">
+    Risk level
+    <select id="queue-risk-level" [value]="riskLevel" (change)="onRiskLevelChange($event)">
+      <option value="all">All</option>
+      <option value="approved">Approved</option>
+      <option value="review">Review</option>
+      <option value="blocked">Blocked</option>
+    </select>
+  </label>
+  <label for="queue-status">
+    Payment status
+    <select id="queue-status" [value]="status" (change)="onStatusChange($event)">
+      <option value="all">All</option>
+      <option value="success">Successful</option>
+      <option value="failed">Failed</option>
+    </select>
+  </label>
+</div>

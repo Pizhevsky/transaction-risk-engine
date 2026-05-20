@@ -1,0 +1,86 @@
+<div class="card table-card">
+  <div class="table-status">
+    @if (loading) {
+      <span>Loading transactions...</span>
+    }
+    @if (error) {
+      <span class="error">{{ error }}</span>
+    }
+    @if (!loading && !error && totalCount > 0) {
+      <span>Showing {{ visibleStart }}–{{ visibleEnd }} of {{ totalCount }}</span>
+    }
+    @if (!loading && !error && totalCount === 0) {
+      <span>No transactions match the current filters</span>
+    }
+  </div>
+  <div class="table-scroll">
+    <table>
+      <caption class="sr-only">Transactions in the review queue</caption>
+      <colgroup>
+        <col class="col-risk" />
+        <col class="col-user" />
+        <col class="col-amount" />
+        <col class="col-status" />
+        <col class="col-merchant" />
+        <col class="col-decision" />
+        <col class="col-reason" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col">Risk</th>
+          <th scope="col">User</th>
+          <th scope="col">Amount</th>
+          <th scope="col">Payment</th>
+          <th scope="col">Merchant</th>
+          <th scope="col">Decision</th>
+          <th scope="col">Top reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (tx of transactions; track tx.id) {
+          <tr
+            class="transaction-row"
+            tabindex="0"
+            [class.selected]="selectedId === tx.id"
+            [attr.aria-current]="selectedId === tx.id ? 'true' : null"
+            (click)="selectTransaction.emit(tx)"
+            (keydown.enter)="selectTransaction.emit(tx)"
+            (keydown.space)="selectFromKeyboard($event, tx)">
+            <td>
+              <strong class="risk-score">{{ tx.riskScore }}</strong>
+            </td>
+            <td>{{ tx.userName }}</td>
+            <td>{{ tx.currency }} {{ tx.amount | number:'1.2-2' }}</td>
+            <td>
+              <span
+                class="payment-status"
+                [class.success]="tx.successful"
+                [class.failed]="!tx.successful">
+                {{ tx.successful ? 'Successful' : 'Failed' }}
+              </span>
+            </td>
+            <td>{{ tx.merchant }}</td>
+            <td><app-decision-badge [decision]="tx.decision" /></td>
+            <td class="reason">{{ tx.topReason || 'No risk reason' }}</td>
+          </tr>
+        }
+        @if (!loading && totalCount === 0) {
+          <tr>
+            <td colspan="7" class="empty-row">No transactions found. Try changing the filters or analyse a new transaction.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <nav class="pagination" aria-label="Review queue pagination">
+    <button
+      type="button"
+      (click)="previousPage.emit()"
+      [disabled]="loading || currentPage <= 1">Previous</button>
+    <span>Page {{ currentPage }} of {{ totalPages }}</span>
+    <button
+      type="button"
+      (click)="nextPage.emit()"
+      [disabled]="loading || currentPage >= totalPages">Next</button>
+  </nav>
+</div>

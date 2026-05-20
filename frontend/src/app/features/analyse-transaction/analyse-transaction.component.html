@@ -4,9 +4,9 @@
     <h2>Analyse a transaction</h2>
     <p class="subtle">Use the shared risky identifiers to trigger graph-risk signals:</p>
     <div class="demo-strip">
-      <code>device-shared-risk-001</code>
-      <code>card-shared-risk-001</code>
-      <code>203.0.113.99</code>
+      @for (identifier of riskyDemoIdentifiers; track identifier) {
+        <code>{{ identifier }}</code>
+      }
     </div>
   </div>
 </header>
@@ -88,6 +88,28 @@
 
       <h3>{{ item.userName }}</h3>
       <p>{{ item.currency }} {{ item.amount | number:'1.2-2' }} at {{ item.merchant }}</p>
+
+      <dl class="result-meta">
+        <div>
+          <dt>Transaction ID</dt>
+          <dd><code>{{ item.transactionId }}</code></dd>
+        </div>
+        <div>
+          <dt>Created</dt>
+          <dd>{{ item.createdAt | date:'medium' }}</dd>
+        </div>
+        <div>
+          <dt>Ingestion</dt>
+          <dd>{{ item.idempotentReplay ? 'Idempotent replay' : 'New analysis' }}</dd>
+        </div>
+      </dl>
+
+      <a
+        class="review-link"
+        routerLink="/review"
+        [queryParams]="{ transactionId: item.transactionId }">
+        Open this transaction in Review Queue
+      </a>
 
       <h4>Signals</h4>
       @for (signal of item.signals; track signal.code) {

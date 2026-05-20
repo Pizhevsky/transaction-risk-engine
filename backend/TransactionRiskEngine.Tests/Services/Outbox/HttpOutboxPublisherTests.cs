@@ -26,7 +26,9 @@ public sealed class HttpOutboxPublisherTests {
         Assert.Equal("https://risk-events.example.test/outbox", handler.Request?.RequestUri?.ToString());
         Assert.True(handler.Request?.Headers.Contains("X-Outbox-Message-Id"));
         Assert.Equal(message.Type, handler.Request?.Headers.GetValues("X-Outbox-Type").Single());
-        Assert.Equal(message.PayloadJson, handler.Body);
+        Assert.Contains($"\"id\":\"{message.Id}\"", handler.Body);
+        Assert.Contains("\"type\":\"transaction.analysed\"", handler.Body);
+        Assert.Contains("\"payload\":{\"transactionId\":\"abc\"}", handler.Body);
     }
 
     private sealed class FixedHttpClientFactory(HttpClient client) : IHttpClientFactory {

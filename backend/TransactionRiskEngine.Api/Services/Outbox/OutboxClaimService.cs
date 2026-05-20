@@ -13,22 +13,11 @@ public sealed class OutboxClaimService(IOptions<OutboxDispatcherOptions> options
         var now = DateTimeOffset.UtcNow;
         var staleBefore = now.AddSeconds(-Math.Max(30, options.Value.LockTimeoutSeconds));
 
-        var staleMessages = (await db.OutboxMessages
-                .Where(x => x.Status == OutboxMessageStatus.Processing)
-                .ToListAsync(cancellationToken)
-            )
-            .Where(x => x.LockedAt < staleBefore)
-            .ToList();
-
-        foreach (var message in staleMessages) {
-            message.Status = OutboxMessageStatus.Pending;
-            message.LockedAt = null;
-            message.LockedBy = null;
-            message.NextAttemptAt = now.AddSeconds(OutboxDeliveryService.CalculateBackoffSeconds(message.AttemptCount));
+        if (CanUsePostgresSetBasedClaims(db)) {
+            return await RequeueStaleProcessingMessagesWithPostgresAsync(db, now, staleBefore, cancellationToken);
         }
 
-        await db.SaveChangesAsync(cancellationToken);
-        return staleMessages.Count;
+        return await RequeueStaleProcessingMessagesWithTrackedEntitiesAsync(db, now, staleBefore, cancellationToken);
     }
 
     public async Task<List<OutboxMessage>> ClaimBatchAsync(
@@ -75,6 +64,54 @@ public sealed class OutboxClaimService(IOptions<OutboxDispatcherOptions> options
             )
             .OrderBy(x => x.OccurredAt)
             .ToListAsync(cancellationToken);
+    }
+
+
+    private static Task<int> RequeueStaleProcessingMessagesWithPostgresAsync(
+        AppDbContext db,
+        DateTimeOffset now,
+        DateTimeOffset staleBefore,
+        CancellationToken cancellationToken
+    ) {
+        const string sql = """
+            UPDATE "OutboxMessages"
+               SET "Status" = 'Pending',
+                   "LockedAt" = NULL,
+                   "LockedBy" = NULL,
+                   "NextAttemptAt" = {0} + (
+                       LEAST(300, (POWER(2, LEAST(GREATEST("AttemptCount", 1), 8))::int * 5))
+                       * INTERVAL '1 second'
+                   )
+             WHERE "Status" = 'Processing'
+               AND "LockedAt" IS NOT NULL
+               AND "LockedAt" < {1};
+            """;
+
+        return db.Database.ExecuteSqlRawAsync(sql, [now, staleBefore], cancellationToken);
+    }
+
+    private static async Task<int> RequeueStaleProcessingMessagesWithTrackedEntitiesAsync(
+        AppDbContext db,
+        DateTimeOffset now,
+        DateTimeOffset staleBefore,
+        CancellationToken cancellationToken
+    ) {
+        var staleMessages = (await db.OutboxMessages
+                .Where(x => x.Status == OutboxMessageStatus.Processing && x.LockedAt != null)
+                .ToListAsync(cancellationToken)
+            )
+            .Where(x => x.LockedAt < staleBefore)
+            .ToList();
+
+        foreach (var message in staleMessages) {
+            message.Status = OutboxMessageStatus.Pending;
+            message.LockedAt = null;
+            message.LockedBy = null;
+            message.NextAttemptAt = now.AddSeconds(OutboxDeliveryService.CalculateBackoffSeconds(message.AttemptCount));
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return staleMessages.Count;
     }
 
     private static async Task<List<OutboxMessage>> ClaimBatchWithTrackedEntitiesAsync(

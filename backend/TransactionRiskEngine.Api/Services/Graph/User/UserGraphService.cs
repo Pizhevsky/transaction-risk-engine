@@ -27,7 +27,7 @@ public sealed partial class UserGraphService : IUserGraphService {
         CancellationToken cancellationToken
     ) {
         var depth = Math.Clamp(maxDepth, 1, ResolveMaxDepth(_settings));
-        var graph = await LoadBoundedGraphAsync(userId, depth, cancellationToken);
+        var graph = await LoadBoundedGraphFreshAsync(userId, depth, cancellationToken);
 
         return GraphTraversal.FindRiskPaths(
             graph,
@@ -42,7 +42,7 @@ public sealed partial class UserGraphService : IUserGraphService {
         CancellationToken cancellationToken
     ) {
         var maxDepth = ResolveMaxDepth(_settings);
-        var graph = await LoadBoundedGraphAsync(userId, maxDepth, cancellationToken);
+        var graph = await LoadBoundedGraphCachedAsync(userId, maxDepth, cancellationToken);
         var start = GraphNodeIds.User(userId);
         var visible = GraphTraversal.CollectVisibleNodes(graph, start, maxDepth);
 
@@ -60,7 +60,7 @@ public sealed partial class UserGraphService : IUserGraphService {
                 $"{edge.Source}->{edge.Target}",
                 edge.Source,
                 edge.Target,
-                "linked")
+                DescribeEdge(edge.Source, edge.Target))
             )
             .ToList();
 
@@ -77,7 +77,7 @@ public sealed partial class UserGraphService : IUserGraphService {
             riskPaths.Select(path => string.Join(" -> ", path.Nodes)).ToList());
     }
 
-    private async Task<GraphSnapshot> LoadBoundedGraphAsync(
+    private async Task<GraphSnapshot> LoadBoundedGraphCachedAsync(
         Guid userId,
         int maxDepth,
         CancellationToken cancellationToken
@@ -90,6 +90,19 @@ public sealed partial class UserGraphService : IUserGraphService {
         });
 
         return graph ?? await BuildBoundedGraphAsync(context, userId, maxDepth, cancellationToken);
+    }
+
+    private Task<GraphSnapshot> LoadBoundedGraphFreshAsync(
+        Guid userId,
+        int maxDepth,
+        CancellationToken cancellationToken
+    ) {
+        return BuildBoundedGraphAsync(
+            CreateBuildContext(_db, _settings),
+            userId,
+            maxDepth,
+            cancellationToken
+        );
     }
 
     private static async Task<GraphSnapshot> BuildBoundedGraphAsync(
@@ -138,6 +151,40 @@ public sealed partial class UserGraphService : IUserGraphService {
             Math.Clamp(settings.MaxEdgesPerExpansion, 1, 5000),
             Math.Clamp(settings.MaxTotalNodes, 100, 10000)
         );
+    }
+
+
+    private static string DescribeEdge(string source, string target) {
+        if (IsUserDeviceEdge(source, target)) {
+            return "used device";
+        }
+
+        if (IsUserCardEdge(source, target)) {
+            return "used card";
+        }
+
+        if (IsUserIpEdge(source, target)) {
+            return "used IP";
+        }
+
+        return "linked";
+    }
+
+    private static bool IsUserDeviceEdge(string left, string right) {
+        return HasPrefixes(left, right, GraphNodeIds.UserPrefix, GraphNodeIds.DevicePrefix);
+    }
+
+    private static bool IsUserCardEdge(string left, string right) {
+        return HasPrefixes(left, right, GraphNodeIds.UserPrefix, GraphNodeIds.CardPrefix);
+    }
+
+    private static bool IsUserIpEdge(string left, string right) {
+        return HasPrefixes(left, right, GraphNodeIds.UserPrefix, GraphNodeIds.IpPrefix);
+    }
+
+    private static bool HasPrefixes(string left, string right, string firstPrefix, string secondPrefix) {
+        return left.StartsWith(firstPrefix, StringComparison.Ordinal) && right.StartsWith(secondPrefix, StringComparison.Ordinal) ||
+            left.StartsWith(secondPrefix, StringComparison.Ordinal) && right.StartsWith(firstPrefix, StringComparison.Ordinal);
     }
 
     private static int ResolveMaxDepth(GraphRiskOptions settings) => Math.Clamp(settings.MaxDepth, 1, 5);

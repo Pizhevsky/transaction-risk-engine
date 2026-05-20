@@ -21,41 +21,16 @@
 
 <section class="card rules">
   @for (rule of rules(); track rule.code) {
-    <article>
-      @if (drafts()[rule.code]; as draft) {
-      <div class="rule-main">
-        <label>
-          <span>Code</span>
-          <strong>{{ rule.code }}</strong>
-        </label>
-        <label>
-          <span>Description</span>
-          <input
-            type="text"
-            [(ngModel)]="draft.description"
-            maxlength="300" />
-        </label>
-      </div>
-      <div class="rule-controls">
-        <label>
-          <span>Weight</span>
-          <input
-            type="number"
-            [(ngModel)]="draft.weight"
-            min="0"
-            max="100" />
-        </label>
-        <label class="toggle">
-          <input
-            type="checkbox"
-            [(ngModel)]="draft.enabled" />
-          Enabled
-        </label>
-        <button type="button" (click)="save(rule.code)" [disabled]="savingCode() === rule.code">
-          {{ savingCode() === rule.code ? 'Saving...' : 'Save' }}
-        </button>
-      </div>
-      }
-    </article>
+    @if (draftFor(rule.code); as draft) {
+      <app-risk-rule-row
+        [rule]="rule"
+        [draft]="draft"
+        [saving]="savingCode() === rule.code"
+        [dirty]="isDirty(rule.code)"
+        [valid]="isDraftValid(draft)"
+        (draftChange)="updateDraft(rule.code, $event)"
+        (saveRule)="save(rule.code)"
+        (resetRule)="resetDraft(rule.code)" />
+    }
   }
 </section>

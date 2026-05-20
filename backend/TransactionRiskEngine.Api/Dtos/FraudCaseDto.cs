@@ -9,5 +9,7 @@ public sealed record FraudCaseDto(
     int RiskScore,
     string Status,
     string Summary,
-    DateTimeOffset CreatedAt
+    string? ReviewNote,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? ClosedAt
 );

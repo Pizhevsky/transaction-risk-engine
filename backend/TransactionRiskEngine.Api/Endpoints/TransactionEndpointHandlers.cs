@@ -61,9 +61,9 @@ internal static partial class TransactionEndpointHandlers {
 
         var pattern = EndpointQueryHelpers.ContainsPattern(search);
         return query.Where(x =>
-            EF.Functions.Like(x.UserProfile.DisplayName.ToLower(), pattern, "\\") ||
-            EF.Functions.Like(x.Merchant.ToLower(), pattern, "\\") ||
-            EF.Functions.Like(x.Currency.ToLower(), pattern, "\\")
+            EF.Functions.ILike(x.UserProfile.DisplayName, pattern, "\\") ||
+            EF.Functions.ILike(x.Merchant, pattern, "\\") ||
+            EF.Functions.ILike(x.Currency, pattern, "\\")
         );
     }
 

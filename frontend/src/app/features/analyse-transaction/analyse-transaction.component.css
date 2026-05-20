@@ -171,3 +171,33 @@ code {
     position: static;
   }
 }
+
+.result-meta {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1rem 0;
+}
+
+.result-meta div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.result-meta dt {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.result-meta dd {
+  margin: 0;
+}
+
+.review-link {
+  display: inline-flex;
+  margin: 0.25rem 0 1rem;
+  color: var(--color-primary-strong);
+  font-weight: 700;
+  text-decoration: none;
+}

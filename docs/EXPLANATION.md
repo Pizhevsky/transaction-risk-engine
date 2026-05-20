@@ -117,7 +117,19 @@ The final score is capped at 100.
 
 Review and blocked transactions can create fraud-case records for follow-up.
 
-## Rule Evaluating
+## Fraud Case Review
+
+Fraud cases separate automated risk scoring from human review. The engine can open a case when a transaction reaches `Review` or `Blocked`. A reviewer can then move the case through a small lifecycle:
+
+```text
+Open -> Investigating -> ClosedApproved
+Open -> Investigating -> ClosedBlocked
+ClosedApproved / ClosedBlocked -> Investigating
+```
+
+Manual status changes can include a review note and are written to the audit log. Closing or reopening a case does not rewrite the original transaction decision; it records the review outcome around that decision. Rule evaluation can also reconcile case state when recalculated risk falls back to `Approved` or rises again.
+
+## Rule Evaluation
 
 When a risk rule changes, the system can evaluate recent transactions from stored risk events. Evaluating updates the applied scores and resulting decisions based on the current rule configuration.
 

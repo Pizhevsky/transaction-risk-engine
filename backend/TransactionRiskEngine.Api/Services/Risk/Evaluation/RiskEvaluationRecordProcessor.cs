@@ -23,15 +23,15 @@ public sealed class RiskEvaluationRecordProcessor(
         await UpgradeAmountBaseScoreAsync(db, record, cancellationToken);
         ApplyCurrentRules(record, rules);
         ApplyDecision(record);
-        var openedFraudCase = AddFraudCaseIfRequired(db, record, now);
+        var fraudCaseTransition = ReconcileFraudCase(db, record, now);
         var riskChanged = oldScore != record.RiskScore || oldDecision != record.Decision;
 
-        if (!riskChanged && !openedFraudCase) {
+        if (!riskChanged && fraudCaseTransition == FraudCaseTransition.None) {
             return false;
         }
 
         AddAuditLog(db, record, oldScore, oldDecision, reason, now);
-        AddOutboxMessages(db, record, oldScore, oldDecision, riskChanged, openedFraudCase, now);
+        AddOutboxMessages(db, record, oldScore, oldDecision, riskChanged, fraudCaseTransition, now);
         return true;
     }
 
@@ -61,26 +61,52 @@ public sealed class RiskEvaluationRecordProcessor(
         record.Decision = RiskDecisionService.Decide(record.RiskScore);
     }
 
-    private static bool AddFraudCaseIfRequired(
+    private static FraudCaseTransition ReconcileFraudCase(
         AppDbContext db,
         TransactionRecord record,
         DateTimeOffset now
     ) {
-        if (record.Decision is not (TransactionDecision.Review or TransactionDecision.Blocked) ||
-            record.FraudCase is not null
-        ) {
-            return false;
+        if (record.Decision is TransactionDecision.Approved) {
+            return CloseOpenFraudCaseIfRiskCleared(record, now);
         }
 
-        db.FraudCases.Add(new FraudCase {
-            Id = Guid.NewGuid(),
-            TransactionRecordId = record.Id,
-            Status = FraudCaseStatus.Open,
-            Summary = $"{record.Decision} decision after rule evaluation for {record.Currency} {record.Amount:N2} at {record.Merchant}",
-            CreatedAt = now
-        });
+        if (record.Decision is not (TransactionDecision.Review or TransactionDecision.Blocked)) {
+            return FraudCaseTransition.None;
+        }
 
-        return true;
+        if (record.FraudCase is null) {
+            record.FraudCase = new FraudCase {
+                Id = Guid.NewGuid(),
+                TransactionRecordId = record.Id,
+                Status = FraudCaseStatus.Open,
+                Summary = $"{record.Decision} decision after rule evaluation for {record.Currency} {record.Amount:N2} at {record.Merchant}",
+                CreatedAt = now
+            };
+            db.FraudCases.Add(record.FraudCase);
+
+            return FraudCaseTransition.Opened;
+        }
+
+        if (record.FraudCase.Status is FraudCaseStatus.ClosedApproved or FraudCaseStatus.ClosedBlocked) {
+            record.FraudCase.Status = FraudCaseStatus.Open;
+            record.FraudCase.ClosedAt = null;
+            record.FraudCase.Summary = $"Reopened after rule evaluation changed decision to {record.Decision} for {record.Currency} {record.Amount:N2} at {record.Merchant}";
+            return FraudCaseTransition.Reopened;
+        }
+
+        return FraudCaseTransition.None;
+    }
+
+    private static FraudCaseTransition CloseOpenFraudCaseIfRiskCleared(TransactionRecord record, DateTimeOffset now) {
+        if (record.FraudCase is null ||
+            record.FraudCase.Status is not (FraudCaseStatus.Open or FraudCaseStatus.Investigating)) {
+            return FraudCaseTransition.None;
+        }
+
+        record.FraudCase.Status = FraudCaseStatus.ClosedApproved;
+        record.FraudCase.ClosedAt = now;
+        record.FraudCase.Summary = $"Closed after rule evaluation reduced decision to Approved for {record.Currency} {record.Amount:N2} at {record.Merchant}";
+        return FraudCaseTransition.ClosedApproved;
     }
 
     private static async Task UpgradeAmountBaseScoreAsync(
@@ -100,6 +126,7 @@ public sealed class RiskEvaluationRecordProcessor(
             .AsNoTracking()
             .Where(x => x.UserProfileId == record.UserProfileId &&
                 x.Successful &&
+                x.Currency == record.Currency &&
                 x.CreatedAt < record.CreatedAt
             )
             .OrderByDescending(x => x.CreatedAt)
@@ -144,7 +171,7 @@ public sealed class RiskEvaluationRecordProcessor(
         int oldScore,
         TransactionDecision oldDecision,
         bool riskChanged,
-        bool openedFraudCase,
+        FraudCaseTransition fraudCaseTransition,
         DateTimeOffset occurredAt
     ) {
         var writer = new OutboxWriter(db);
@@ -164,19 +191,36 @@ public sealed class RiskEvaluationRecordProcessor(
             );
         }
 
-        if (!openedFraudCase) {
+        if (fraudCaseTransition == FraudCaseTransition.None) {
             return;
         }
 
         writer.Add(
-            "fraud-case.opened",
+            ResolveFraudCaseEventType(fraudCaseTransition),
             new {
                 transactionId = record.Id,
                 userId = record.UserProfileId,
                 score = record.RiskScore,
-                decision = record.Decision.ToString()
+                decision = record.Decision.ToString(),
+                caseStatus = record.FraudCase?.Status.ToString()
             },
             occurredAt
         );
+    }
+
+    private static string ResolveFraudCaseEventType(FraudCaseTransition transition) {
+        return transition switch {
+            FraudCaseTransition.Opened => "fraud-case.opened",
+            FraudCaseTransition.Reopened => "fraud-case.reopened",
+            FraudCaseTransition.ClosedApproved => "fraud-case.closed-approved",
+            _ => "fraud-case.changed"
+        };
+    }
+
+    private enum FraudCaseTransition {
+        None,
+        Opened,
+        Reopened,
+        ClosedApproved
     }
 }

@@ -185,6 +185,68 @@ public sealed class RiskEvaluationServiceTests {
         Assert.Equal(TransactionDecision.Blocked, transaction.Decision);
     }
 
+
+    [Fact]
+    public async Task Evaluation_closes_open_fraud_case_when_decision_moves_to_approved() {
+        var databaseName = Guid.NewGuid().ToString();
+        await using var db = CreateDb(databaseName);
+        var userId = Guid.NewGuid();
+        var transactionId = Guid.NewGuid();
+
+        db.Users.Add(new UserProfile {
+            Id = userId,
+            DisplayName = "Riley",
+            Email = "riley@example.test"
+        });
+        db.RiskRules.Add(new RiskRule {
+            Code = "HIGH_AMOUNT",
+            Description = "High amount",
+            Weight = 10,
+            Enabled = true
+        });
+        db.Transactions.Add(new TransactionRecord {
+            Id = transactionId,
+            UserProfileId = userId,
+            Amount = 1200,
+            Currency = "NZD",
+            Merchant = "Electronics",
+            Successful = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+            RiskScore = 70,
+            Decision = TransactionDecision.Review,
+            RiskEvents = [
+                new RiskEvent {
+                    Id = Guid.NewGuid(),
+                    Code = "HIGH_AMOUNT",
+                    BaseScore = 30,
+                    Score = 70,
+                    Reason = "High amount",
+                    Evidence = "Original detector evidence"
+                }
+            ],
+            FraudCase = new FraudCase {
+                Id = Guid.NewGuid(),
+                Status = FraudCaseStatus.Open,
+                Summary = "Original open case",
+                CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-10)
+            }
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(databaseName, db);
+
+        var result = await service.EvaluateRecentTransactionsAsync(10, "lower high amount", CancellationToken.None);
+
+        db.ChangeTracker.Clear();
+        var transaction = await db.Transactions.Include(x => x.FraudCase).SingleAsync();
+
+        Assert.Equal(1, result.ProcessedCount);
+        Assert.Equal(1, result.ChangedCount);
+        Assert.Equal(TransactionDecision.Approved, transaction.Decision);
+        Assert.Equal(FraudCaseStatus.ClosedApproved, transaction.FraudCase!.Status);
+        Assert.NotNull(transaction.FraudCase.ClosedAt);
+    }
+
     private static RiskRuleCatalog CreateCatalog(AppDbContext db) => new(
         db,
         new MemoryCache(new MemoryCacheOptions()),

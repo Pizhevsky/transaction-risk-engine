@@ -94,6 +94,7 @@ public sealed partial class AppDbContext {
             entity.HasIndex(x => x.Status);
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
             entity.Property(x => x.Summary).HasMaxLength(400);
+            entity.Property(x => x.ReviewNote).HasMaxLength(500);
             entity.HasOne(x => x.TransactionRecord)
                 .WithOne(x => x.FraudCase)
                 .HasForeignKey<FraudCase>(x => x.TransactionRecordId);

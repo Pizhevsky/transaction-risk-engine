@@ -8,6 +8,18 @@ This guide is a practical demo script for **TransactionRiskEngine .NET**. It wal
 
 The demo intentionally does **not** cover authentication or analyst roles. Those are out of scope for this project. The demo focuses on backend risk logic, API behaviour, rule scoring, idempotency, outbox operations, and frontend explainability.
 
+## Five-minute demo path
+
+Use this path when a reviewer only has a few minutes:
+
+1. Start PostgreSQL, the API, and the Angular UI.
+2. Open **Analyse transaction** and submit the seeded risky demo values.
+3. Point out the current result panel on the right: score, decision, and risk signals are visible immediately.
+4. Open **Review queue**, select the new row, and inspect the stored transaction evidence.
+5. Click **View graph** to show the device/card/IP relationship graph for that exact transaction.
+6. Open **Risk rules**, change a weight, then use **Operations** to run evaluation and show existing decisions updating from persisted risk events.
+7. Open **Fraud Cases** to show manual review actions, notes, and case status transitions.
+
 ## Assumptions
 
 Seed data is enabled. The examples below assume these demo users are available:
@@ -100,7 +112,7 @@ Notes:
 
 ## Frontend analysis behaviour
 
-The Analyse screen is designed to give immediate feedback. After pressing **Analyse**, the current result appears directly below the form with:
+The Analyse screen is designed to give immediate feedback. After pressing **Analyse**, the current result appears in the panel on the right with:
 
 - risk score and decision;
 - transaction summary;
@@ -116,7 +128,7 @@ This makes the simulation visible without needing to switch screens first. The R
 |---:|---|---|---|
 | 1 | Open Review Queue | Frontend | Transaction list, filters, pagination metadata |
 | 2 | Open Operations | Frontend | Health, outbox, evaluation jobs |
-| 3 | Analyse normal transaction | API or UI | Approved decision with low or no risk and an immediate result below the form |
+| 3 | Analyse normal transaction | API or UI | Approved decision with low or no risk and an immediate result in the panel on the right |
 | 4 | Analyse high amount | API or UI | Amount anomaly signal shown in the latest result panel |
 | 5 | Analyse new device | API or UI | New device signal |
 | 6 | Analyse failed attempts | API | Failed attempt signal |
@@ -138,7 +150,7 @@ This makes the simulation visible without needing to switch screens first. The R
 1. Open `http://localhost:4200`.
 2. Go to the Review Queue screen.
 3. Check the transaction table.
-4. Change filters such as risk level, status, search text, page size, or page offset.
+4. Change filters such as risk level, payment status, search text, or pagination.
 
 ### Expected result
 
@@ -159,7 +171,30 @@ X-Offset
 
 The Angular UI consumes these headers rather than guessing pagination state from the body alone.
 
-## User case 2: Open the Operations screen
+## User case 2: Manually review a fraud case
+
+### Steps
+
+1. Open the Fraud Cases screen.
+2. Find an `Open` case created by a review or blocked transaction.
+3. Add an optional review note.
+4. Click **Start investigating**.
+5. After reviewing the transaction signals and relationship graph, close the case as approved or blocked.
+
+### Expected result
+
+- The clicked action shows `Saving...` while the request is in progress.
+- Other action buttons for that same case are disabled to prevent duplicate transitions.
+- Other fraud cases remain usable while one case is being updated.
+- The case status changes on the case card after the API responds.
+- `ClosedApproved` and `ClosedBlocked` cases show a closed timestamp.
+- The backend records an audit log entry for the status transition.
+
+### Notes
+
+The risk engine creates cases, but the case status represents a human review workflow. This separates automated scoring from analyst resolution. In a production system, this endpoint would be protected by an analyst or `fraud-cases:write` permission.
+
+## User case 3: Open the Operations screen
 
 ### Steps
 
@@ -178,7 +213,7 @@ The Angular UI consumes these headers rather than guessing pagination state from
 
 This screen exists to show that backend operations are visible. It is not a decoration. It exposes health, outbox, and rule evaluation controls.
 
-## User case 3: Analyse a normal transaction
+## User case 4: Analyse a normal transaction
 
 ### Request
 
@@ -209,7 +244,7 @@ curl -i -X POST http://localhost:5176/api/transactions/analyse \
 
 This proves the engine is not designed to flag everything. It can return a normal decision when the transaction matches the user's behaviour.
 
-## User case 4: Analyse a high amount transaction
+## User case 5: Analyse a high amount transaction
 
 ### Request
 
@@ -240,7 +275,7 @@ curl -i -X POST http://localhost:5176/api/transactions/analyse \
 
 The amount detector compares the transaction against recent successful history. It preserves a base score, then the rule engine applies the currently configured rule weight. Very large amounts can keep a stronger detector score than the default rule weight.
 
-## User case 5: Analyse a new device transaction
+## User case 6: Analyse a new device transaction
 
 ### Request
 
@@ -270,7 +305,7 @@ curl -i -X POST http://localhost:5176/api/transactions/analyse \
 
 Entity resolution links users to devices, cards, and IP addresses. The signal builder detects when a known user appears from a new device.
 
-## User case 6: Analyse failed attempts
+## User case 7: Analyse failed attempts
 
 ### Request
 
@@ -332,7 +367,7 @@ curl -i -X POST http://localhost:5176/api/transactions/analyse \
 
 The engine checks recent failed attempts in a sliding 15 minute window. This demonstrates temporal analysis, not only field validation.
 
-## User case 7: Analyse velocity spike
+## User case 8: Analyse velocity spike
 
 ### Steps
 
@@ -360,7 +395,7 @@ X-Idempotency-Key: demo-velocity-0005
 
 The velocity detector uses a database count over a recent time window. This is algorithmic behaviour connected to indexed persistence.
 
-## User case 8: Analyse graph risk
+## User case 9: Analyse graph risk
 
 ### Request
 
@@ -391,7 +426,7 @@ curl -i -X POST http://localhost:5176/api/transactions/analyse \
 
 This is the key algorithm demo. The backend builds a bounded relationship graph across users, devices, cards, and IP addresses, then uses BFS to find explainable paths to risky entities.
 
-## User case 9: Open transaction detail
+## User case 10: Open transaction detail
 
 ### Steps
 
@@ -409,7 +444,7 @@ This is the key algorithm demo. The backend builds a bounded relationship graph 
 
 The UI is not hiding the algorithm. It exposes why a decision happened and separates original detector severity from applied rule score.
 
-## User case 10: Open the relationship graph
+## User case 11: Open the relationship graph
 
 ### Steps
 
@@ -425,7 +460,7 @@ GET http://localhost:5176/api/users/11111111-1111-1111-1111-111111111111/connect
 
 ### Expected result
 
-- The graph displays user relationships.
+- The graph displays user relationships with typed edge labels. Other users appear only when they share a device, card, or IP address with the selected user.
 - Risky or flagged relationships are visible.
 - Empty, loading, error, and retry states exist in the UI.
 
@@ -433,7 +468,7 @@ GET http://localhost:5176/api/users/11111111-1111-1111-1111-111111111111/connect
 
 The graph view is an investigation tool. It makes the BFS risk path understandable to a human reviewer.
 
-## User case 11: Test idempotent replay
+## User case 12: Test idempotent replay
 
 ### Steps
 
@@ -449,7 +484,7 @@ The graph view is an investigation tool. It makes the BFS risk path understandab
 
 This protects clients from retrying a transaction after a timeout and accidentally creating duplicates.
 
-## User case 12: Test idempotency conflict
+## User case 13: Test idempotency conflict
 
 ### Steps
 
@@ -465,7 +500,7 @@ This protects clients from retrying a transaction after a timeout and accidental
 
 The backend stores a request hash. Same user plus same key plus same payload is a replay. Same user plus same key plus different payload is a client error.
 
-## User case 13: Test validation before database work
+## User case 14: Test validation before database work
 
 ### Request
 
@@ -494,7 +529,7 @@ curl -i -X POST http://localhost:5176/api/transactions/analyse \
 
 Bad requests are rejected at the edge. This protects the risk engine and keeps data quality high.
 
-## User case 14: Search, filter, and paginate transactions
+## User case 15: Search, filter, and paginate transactions
 
 ### API examples
 
@@ -514,7 +549,7 @@ GET http://localhost:5176/api/transactions?search=Gift&limit=10&offset=0
 
 The API remains simple for the frontend while still exposing enough metadata for correct pagination.
 
-## User case 15: Update a risk rule
+## User case 16: Update a risk rule
 
 ### Frontend steps
 
@@ -546,14 +581,14 @@ curl -i -X PUT http://localhost:5176/api/rules/HIGH_AMOUNT \
 
 Detection and scoring policy are separated. Detectors create raw evidence. Rules decide how much that evidence contributes.
 
-## User case 16: Evaluate existing transactions
+## User case 17: Evaluate existing transactions
 
 ### Frontend steps
 
 1. Open Operations.
 2. Enter a batch size, for example `250`.
 3. Enter a reason, for example `HIGH_AMOUNT weight changed`.
-4. Start rule evaluation.
+4. Run rule evaluation.
 
 ### API equivalent
 
@@ -568,7 +603,7 @@ curl -i -X POST http://localhost:5176/api/rules/evaluate \
 
 ### Expected result
 
-- Response returns `202 Accepted`.
+- Response returns `200 OK` after the bounded evaluation completes.
 - An evaluation job is created.
 - Existing risk events are re-scored using stored base scores and current rules.
 - Stored high-amount events can be upgraded when the saved amount belongs to a stronger detector severity band.
@@ -578,7 +613,7 @@ curl -i -X POST http://localhost:5176/api/rules/evaluate \
 
 This is intentionally rule evaluation, not full historical reanalysis. It recalculates decisions from stored risk events after rule changes. It does not reconstruct every historical graph or velocity condition.
 
-## User case 17: Check evaluation jobs
+## User case 18: Check evaluation jobs
 
 ### API
 
@@ -596,7 +631,7 @@ GET http://localhost:5176/api/rules/evaluation-jobs
 
 A rule change can have operational impact. The project exposes that impact instead of hiding it.
 
-## User case 18: Check outbox behaviour
+## User case 19: Check outbox behaviour
 
 ### Steps
 
@@ -617,7 +652,7 @@ A rule change can have operational impact. The project exposes that impact inste
 
 Outbox messages are written transactionally with the domain decision, then published after commit through a publisher boundary. In a production deployment the publisher can be replaced with RabbitMQ, Kafka, SQS, or Azure Service Bus.
 
-## User case 19: Demonstrate readiness degradation
+## User case 20: Demonstrate readiness degradation
 
 ### Steps
 
@@ -634,7 +669,7 @@ Outbox messages are written transactionally with the domain decision, then publi
 
 This separates diagnostic status from traffic readiness.
 
-## User case 20: Demonstrate rate limiting
+## User case 21: Demonstrate rate limiting
 
 ### Steps
 
@@ -650,7 +685,7 @@ This separates diagnostic status from traffic readiness.
 
 This is not a full anti-abuse system, but it shows operational thinking around write endpoints.
 
-## User case 21: Explain the frontend failure states
+## User case 22: Explain the frontend failure states
 
 ### Steps
 
@@ -667,46 +702,3 @@ This is not a full anti-abuse system, but it shows operational thinking around w
 ### Notes
 
 The frontend is built to expose backend state and failure clearly. This matters for internal analyst tools.
-
-## Final demo checklist
-
-Before recording or showing the project:
-
-- PostgreSQL is running.
-- Backend starts without migration errors.
-- Frontend starts and reaches the API.
-- `/health/ready` returns ready or a known diagnostic state.
-- Review Queue shows transactions.
-- Graph-risk transaction can be created.
-- Transaction detail shows risk signals.
-- Relationship graph loads.
-- Rule update succeeds.
-- Evaluation job can be created.
-- Idempotency replay and conflict cases work.
-- Validation returns `422` for bad input.
-
-## Project notes
-
-Key project properties:
-
-- The final decision is deterministic and explainable.
-- The graph algorithm is bounded, tested, and guarded against uncontrolled expansion.
-- Idempotency includes request hash conflict detection, not only duplicate-key reuse.
-- Rule changes affect applied scores while preserving original detector evidence.
-- The outbox pattern keeps domain writes and publishable events consistent.
-- The frontend makes algorithmic behaviour visible through detail panels, graph views, rules, and operations.
-- Authentication and analyst roles are intentionally out of scope, but the first production step would be to protect rule update and evaluation endpoints with a `rules:write` claim.
-
-## Suggested demo order for a 15 minute video
-
-1. Show README and architecture in 60 seconds.
-2. Start backend and frontend.
-3. Open Operations and Review Queue.
-4. Analyse a normal transaction.
-5. Analyse a graph-risk transaction.
-6. Show detail and graph evidence.
-7. Show idempotent replay and conflict.
-8. Change a risk rule.
-9. Evaluate recent transactions.
-10. Show operations/outbox status.
-11. Finish with known trade-offs and next production steps.

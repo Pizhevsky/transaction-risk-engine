@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using TransactionRiskEngine.Api.Domain;
 
@@ -16,7 +17,7 @@ public sealed class HttpOutboxPublisher(
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint) {
-            Content = new StringContent(message.PayloadJson, Encoding.UTF8, "application/json")
+            Content = new StringContent(BuildEnvelope(message), Encoding.UTF8, "application/json")
         };
 
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -29,5 +30,15 @@ public sealed class HttpOutboxPublisher(
             .SendAsync(request, cancellationToken);
 
         response.EnsureSuccessStatusCode();
+    }
+
+    private static string BuildEnvelope(OutboxMessage message) {
+        using var payload = JsonDocument.Parse(message.PayloadJson);
+        return JsonSerializer.Serialize(new {
+            id = message.Id,
+            type = message.Type,
+            occurredAt = message.OccurredAt,
+            payload = payload.RootElement.Clone()
+        });
     }
 }

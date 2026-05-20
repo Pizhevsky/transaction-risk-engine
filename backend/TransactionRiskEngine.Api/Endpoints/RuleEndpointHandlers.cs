@@ -76,10 +76,7 @@ internal static class RuleEndpointHandlers {
             string.IsNullOrWhiteSpace(request.Reason) ? "Manual rule evaluation" : request.Reason.Trim(),
             cancellationToken);
 
-        return Results.Accepted(
-            $"/api/rules/evaluation-jobs/{result.JobId}",
-            new RiskEvaluationResponse(result.JobId, result.ProcessedCount, result.ChangedCount)
-        );
+        return Results.Ok(new RiskEvaluationResponse(result.JobId, result.ProcessedCount, result.ChangedCount));
     }
 
     public static async Task<IResult> ListJobsAsync(AppDbContext db, CancellationToken cancellationToken) {

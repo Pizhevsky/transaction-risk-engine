@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { RiskApiService } from '../../core/risk-api.service';
 import { AnalyseTransactionComponent } from './analyse-transaction.component';
@@ -27,7 +28,10 @@ describe('AnalyseTransactionComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AnalyseTransactionComponent],
-      providers: [{ provide: RiskApiService, useValue: apiMock }]
+      providers: [
+        provideRouter([]),
+        { provide: RiskApiService, useValue: apiMock }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(AnalyseTransactionComponent);
@@ -55,5 +59,15 @@ describe('AnalyseTransactionComponent', () => {
     expect(text).toContain('82/100');
     expect(text).toContain('Review');
     expect(text).toContain('HIGH_AMOUNT');
+  });
+
+  it('links the latest analysis result to the exact review queue transaction', () => {
+    fixture.componentInstance.submit();
+    fixture.detectChanges();
+
+    const link = fixture.nativeElement.querySelector('.review-link') as HTMLAnchorElement;
+
+    expect(link.getAttribute('href')).toContain('/review');
+    expect(link.getAttribute('href')).toContain('transactionId=tx-1');
   });
 });

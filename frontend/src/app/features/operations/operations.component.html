@@ -46,7 +46,7 @@
   </section>
 } @else {
   <section class="card status-placeholder">
-    Runtime status will appear after the API responds.
+    {{ healthLoading() ? 'Loading runtime status...' : 'Runtime status will appear after the API responds.' }}
   </section>
 }
 
@@ -75,7 +75,7 @@
         [disabled]="evaluating()" />
     </label>
     <button type="button" class="primary" (click)="runEvaluate()" [disabled]="evaluating()">
-      {{ evaluating() ? 'Evaluating...' : 'Start evaluation' }}
+      {{ evaluating() ? 'Evaluating...' : 'Run evaluation' }}
     </button>
   </div>
 </section>
@@ -86,7 +86,9 @@
     <p class="subtle">Existing risk events are evaluated using the current rule table.</p>
   </div>
 
-  @if (jobs().length > 0) {
+  @if (jobsLoading()) {
+    <p class="subtle">Loading recent evaluation jobs...</p>
+  } @else if (jobs().length > 0) {
     <table>
       <caption class="sr-only">Recent rule evaluation jobs</caption>
       <thead>

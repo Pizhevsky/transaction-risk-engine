@@ -25,7 +25,7 @@ internal static class EndpointQueryHelpers {
     }
 
     public static string ContainsPattern(string value) {
-        return $"%{EscapeLikePattern(value.Trim().ToLowerInvariant())}%";
+        return $"%{EscapeLikePattern(value.Trim())}%";
     }
 
     private static string EscapeLikePattern(string value) {

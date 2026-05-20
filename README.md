@@ -8,7 +8,7 @@ The backend is a .NET API backed by PostgreSQL. The frontend is an Angular/RxJS 
 
 - Transaction analysis with approve, review, and block decisions.
 - Sliding-window velocity checks for recent transaction activity and failed attempts.
-- Amount anomaly detection against each user's successful transaction history.
+- Amount anomaly detection against each user's same-currency successful transaction history.
 - Relationship analysis across users, devices, payment cards, and IP addresses.
 - Explainable risk signals with code, score, reason, and evidence fields.
 - Configurable risk rules stored in PostgreSQL.
@@ -17,7 +17,9 @@ The backend is a .NET API backed by PostgreSQL. The frontend is an Angular/RxJS 
 - Transactional writes for transactions, risk events, fraud cases, audit logs, and outbox messages.
 - Claimed outbox dispatch with retry, backoff, and stale-lock recovery.
 - Health, readiness, and diagnostic endpoints.
-- Angular review queue, graph view, rules screen, and operations screen.
+- Correlation IDs and structured request telemetry logs.
+- Manual fraud-case review workflow with status transitions, review notes, and audit entries.
+- Angular review queue, fraud case screen, graph view, rules screen, and operations screen.
 
 ## Tech Stack
 
@@ -45,6 +47,27 @@ The backend is a .NET API backed by PostgreSQL. The frontend is an Angular/RxJS 
 
 - Docker Compose file for PostgreSQL 14
 - Local API and UI runtime without containerising the application services
+
+
+## Screenshots
+
+### Analyse transaction
+
+![Analyse transaction result](docs/images/analyse-result.png)
+
+The Analyse screen shows the submitted transaction and the current result side by side. The result panel shows the score, decision, transaction ID, generated signals, and whether the request was a new analysis or an idempotent replay.
+
+### Review queue
+
+![Transaction review queue](docs/images/review-queue.png)
+
+The Review Queue shows recent transactions with filters, pagination, selected transaction details, risk signals, and a link to the relationship graph.
+
+### Relationship graph
+
+![Relationship graph](docs/images/relationship-graph.png)
+
+The graph view explains why graph risk was raised. Other users appear only when they share a device, payment card, or IP address with the selected transaction user.
 
 ## Repository Layout
 
@@ -79,7 +102,7 @@ TransactionRiskEngine/
       Validation/                  # Request validation and security tests
   frontend/
     src/app/core/                   # API client and shared models
-    src/app/features/               # Analysis, review, rules, and operations screens
+    src/app/features/               # Analysis, review, fraud cases, rules, and operations screens
     src/app/layout/                 # Route-driven shell menu
     src/app/shared/                 # Shared standalone UI components
   docs/
@@ -210,9 +233,22 @@ The core ERD relationships are:
 
 ## Demo Guide
 
-A step-by-step demo script is available in [`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md). It covers the main product paths: analysing transactions, reviewing decisions, inspecting graph relationships, changing rule weights, running evaluation jobs, checking idempotency behaviour, and using the operations screen.
+A step-by-step demo script is available in [`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md). It covers the main product paths: analysing transactions, reviewing decisions, inspecting graph relationships, changing rule weights, running evaluation jobs, reviewing fraud cases, checking idempotency behaviour, and using the operations screen.
 
-For the quickest frontend demo, open the Analyse screen, keep the seeded risky values, press **Analyse**, and review the latest result directly below the form. The same transaction then appears in the Review Queue with its stored decision trail.
+### Five-Minute Demo Path
+
+1. Start PostgreSQL, the API, and the Angular app.
+2. Open the Analyse screen, keep the seeded risky device/card/IP values, and press **Analyse**.
+3. Review the current result panel on the right for score, decision, and risk signals.
+4. Open the Review Queue, select the stored transaction, and inspect the side-panel evidence.
+5. Click **View graph** to show the transaction's device, card, and IP relationships.
+6. Open Risk Rules, change a rule weight, then run evaluation from Operations to show existing decisions being refreshed from stored evidence.
+
+For the quickest frontend demo, open the Analyse screen, keep the seeded risky values, press **Analyse**, and review the result panel on the right. The same transaction then appears in the Review Queue with its stored decision trail.
+
+## Continuous Integration
+
+The repository includes a GitHub Actions workflow at [`.github/workflows/ci.yml`](.github/workflows/ci.yml). It runs backend restore/build/tests, PostgreSQL integration tests with `RUN_POSTGRES_INTEGRATION_TESTS=true`, and frontend install/build/headless tests.
 
 ## API Examples
 
@@ -266,7 +302,29 @@ The detail response includes transaction metadata, linked device/card/IP fields,
 GET http://localhost:5176/api/users/{userId}/connections
 ```
 
-The graph response contains visible nodes, edges, and risk paths used by the frontend graph panel.
+The graph response contains visible nodes, typed relationship edges, and risk paths used by the frontend graph panel.
+
+### List Fraud Cases
+
+```http
+GET http://localhost:5176/api/fraud-cases?status=open&limit=50&offset=0
+```
+
+Fraud cases are opened when a transaction moves into review or blocked state. Rule evaluation can close an open case when the recalculated decision drops back to `Approved`, or reopen a closed case if risk rises again. The Fraud Cases screen also supports manual review actions: move a case to `Investigating`, close it as approved, close it as blocked, or reopen a closed case for further investigation.
+
+### Update Fraud Case Status
+
+```http
+PATCH http://localhost:5176/api/fraud-cases/{caseId}/status
+Content-Type: application/json
+
+{
+  "status": "Investigating",
+  "note": "Manual review started after graph risk evidence."
+}
+```
+
+Supported status values are `Open`, `Investigating`, `ClosedApproved`, and `ClosedBlocked`. Status changes write an audit log entry. Closing a case sets `closedAt`; reopening or moving a case back to investigation clears it. This is a review lifecycle only — it does not rewrite the original risk decision.
 
 ### Update A Risk Rule
 
@@ -293,6 +351,8 @@ Content-Type: application/json
 }
 ```
 
+The endpoint runs the bounded evaluation synchronously and returns `200 OK` with processed and changed counts. It updates stored risk-event scores from the current rule table, not a full historical analysis replay.
+
 ### Health And Status
 
 ```http
@@ -307,8 +367,8 @@ GET http://localhost:5176/health/status
 
 1. The API validates the transaction request and idempotency key.
 2. Existing user, device, card, and IP records are resolved or linked.
-3. Risk signal builders inspect recent velocity, failed attempts, amount history, new device state, and graph connections.
-4. Current risk rules decide which signals contribute to the applied score. High-amount and graph-risk signals keep detector severity when it is stronger than the configured rule weight.
+3. Risk signal builders inspect recent velocity, failed attempts, same-currency amount history, new device state, and fresh graph connections.
+4. Current risk rules decide which signals contribute to the applied score. Disabled detector outputs are stored with an applied score of `0`, so later rule evaluation can use the preserved evidence. High-amount and graph-risk signals keep detector severity when it is stronger than the configured rule weight.
 5. The decision service normalises the total score into `Approved`, `Review`, or `Blocked`.
 6. The API writes the transaction, risk events, optional fraud case, audit log, and outbox messages in one database transaction.
 7. The outbox dispatcher claims and publishes committed messages after the transaction completes.
@@ -323,10 +383,12 @@ Default decision thresholds:
 
 ## Frontend Behaviour
 
-- The Analyse screen shows the latest decision directly below the form after submission, including score, decision, and generated signals.
+- The Analyse screen shows the latest decision in the result panel on the right after submission, including score, decision, and generated signals.
 - The review queue combines search, risk filter, status filter, pagination, refresh events, and safe detail loading.
 - Detail loading uses request switching so stale responses do not replace a newer selection.
-- The graph panel has loading, empty, error, and retry states.
+- The graph panel has loading, empty, error, retry, legend, and relationship explanation states.
+- The fraud cases screen shows case status, risk score, summary, filters, pagination, review notes, and allowed lifecycle actions.
+- Fraud-case actions use per-case pending state: the active case is protected from duplicate status updates while only the clicked action shows `Saving...`.
 - The rules screen supports rule editing and evaluation submission.
 - The operations screen shows readiness, outbox status, recent evaluation jobs, and last refresh time.
 - Routes are lazy-loaded so graph dependencies are loaded only when needed.
@@ -363,5 +425,7 @@ The test suite covers risk thresholds, amount anomaly detection, velocity signal
 - Authentication and role-based access control are not included.
 - Offset pagination is used for transaction lists.
 - Relationship traversal is bounded application-side BFS, not a database recursive query.
-- Outbox publishing can log locally or send HTTP requests; a message broker adapter is not included.
-- Evaluating recalculates decisions from stored risk events and current rules. It does not replay historical graph or velocity context; high-amount events can upgrade stored detector severity when the saved amount maps to a stronger amount-risk band.
+- Outbox publishing can log locally or send HTTP event envelopes; a message broker adapter is not included. Consumers should deduplicate by outbox message ID because successful publishing followed by a failed status update can cause a retry.
+- The user graph UI uses a short cache for responsiveness. The scoring path bypasses that cache and loads fresh bounded graph data.
+- Evaluating recalculates decisions from stored risk events and current rules. It does not replay historical graph or velocity context; high-amount events can upgrade stored detector severity when the saved amount maps to a stronger amount-risk band, and fraud cases are reconciled when risk moves up or down.
+- Risk rule cache invalidation is process-local. A multi-instance deployment would use distributed invalidation or a `risk-rule.updated` event to refresh other instances.

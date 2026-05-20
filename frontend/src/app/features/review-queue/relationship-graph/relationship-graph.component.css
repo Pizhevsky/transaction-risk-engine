@@ -90,3 +90,46 @@ p {
     max-height: 7rem;
   }
 }
+
+.graph-legend {
+  --graph-selected: #073f87;
+  --graph-risky: #dc2626;
+  --graph-user: #60a5fa;
+  --graph-entity: #0f9f8f;
+
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+}
+
+.graph-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  background: var(--graph-user);
+}
+
+.legend-dot.selected {
+  background: var(--graph-selected);
+}
+
+.legend-dot.risky {
+  background: var(--graph-risky);
+}
+
+.legend-dot.user {
+  background: var(--graph-user);
+}
+
+.legend-dot.entity {
+  background: var(--graph-entity);
+}

@@ -87,8 +87,8 @@ internal static class UserEndpointHandlers {
 
         var pattern = EndpointQueryHelpers.ContainsPattern(search);
         return query.Where(x =>
-            EF.Functions.Like(x.DisplayName.ToLower(), pattern, "\\") ||
-            EF.Functions.Like(x.Email.ToLower(), pattern, "\\")
+            EF.Functions.ILike(x.DisplayName, pattern, "\\") ||
+            EF.Functions.ILike(x.Email, pattern, "\\")
         );
     }
 

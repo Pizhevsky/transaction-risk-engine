@@ -4,11 +4,17 @@
       <h4>Relationship graph</h4>
       <p>
         @if (userName) {
-          Selected transaction graph for {{ userName }}.
+          Selected transaction graph for {{ userName }}. Other users appear only when they share a device, card, or IP address with this user.
         } @else {
-          Selected transaction graph.
+          Selected transaction graph. Other users appear only through shared risk evidence.
         }
       </p>
+      <div class="graph-legend" aria-label="Graph legend">
+        <span><i class="legend-dot selected"></i> selected user</span>
+        <span><i class="legend-dot risky"></i> flagged or risky</span>
+        <span><i class="legend-dot user"></i> related user</span>
+        <span><i class="legend-dot entity"></i> device, card, or IP</span>
+      </div>
     </div>
   </div>
 

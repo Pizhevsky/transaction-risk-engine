@@ -5,6 +5,7 @@ public static class FraudCaseEndpoints {
         var group = app.MapGroup("/api/fraud-cases").WithTags("Fraud Cases");
 
         group.MapGet("/", FraudCaseEndpointHandlers.ListAsync);
+        group.MapPatch("/{id:guid}/status", FraudCaseEndpointHandlers.UpdateStatusAsync);
 
         return app;
     }

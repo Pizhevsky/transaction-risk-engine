@@ -7,6 +7,7 @@ public sealed class FraudCase {
 
     public FraudCaseStatus Status { get; set; } = FraudCaseStatus.Open;
     public string Summary { get; set; } = string.Empty;
+    public string? ReviewNote { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? ClosedAt { get; set; }
 }

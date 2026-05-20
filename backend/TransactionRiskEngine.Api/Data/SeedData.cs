@@ -9,22 +9,26 @@ public static class SeedData {
     public static readonly Guid SamRiskId = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
     public static async Task InitialiseAsync(AppDbContext db) {
-        if (await db.Users.AnyAsync()) {
+        var now = DateTimeOffset.UtcNow;
+
+        if (!await db.Users.AnyAsync()) {
+            var users = CreateUsers(now);
+            var entities = CreatePaymentEntities();
+            var transactions = CreateTransactionHistory(users, entities, now);
+
+            db.Users.AddRange(users.Alex, users.Hana, users.Sam);
+            db.Devices.AddRange(entities.AlexDevice, entities.SharedRiskDevice);
+            db.PaymentCards.AddRange(entities.AlexCard, entities.SharedRiskCard);
+            db.IpAddresses.AddRange(entities.AlexIp, entities.RiskIp);
+
+            AddUserEntityLinks(db, users, entities, now);
+            db.Transactions.AddRange(transactions);
+            AddFraudCases(db, transactions, now);
+            await db.SaveChangesAsync();
             return;
         }
 
-        var now = DateTimeOffset.UtcNow;
-        var users = CreateUsers(now);
-        var entities = CreatePaymentEntities();
-
-        db.Users.AddRange(users.Alex, users.Hana, users.Sam);
-        db.Devices.AddRange(entities.AlexDevice, entities.SharedRiskDevice);
-        db.PaymentCards.AddRange(entities.AlexCard, entities.SharedRiskCard);
-        db.IpAddresses.AddRange(entities.AlexIp, entities.RiskIp);
-
-        AddUserEntityLinks(db, users, entities, now);
-        db.Transactions.AddRange(CreateTransactionHistory(users, entities, now));
-
+        await EnsureFraudCasesAsync(db, now);
         await db.SaveChangesAsync();
     }
 
@@ -164,6 +168,35 @@ public static class SeedData {
 
         return history;
     }
+
+    private static async Task EnsureFraudCasesAsync(AppDbContext db, DateTimeOffset createdAt) {
+        var riskTransactions = await db.Transactions
+            .Include(x => x.FraudCase)
+            .Where(x => x.Decision == TransactionDecision.Review ||
+                x.Decision == TransactionDecision.Blocked)
+            .ToListAsync();
+
+        AddFraudCases(db, riskTransactions.Where(x => x.FraudCase is null), createdAt);
+    }
+
+    private static void AddFraudCases(
+        AppDbContext db,
+        IEnumerable<TransactionRecord> transactions,
+        DateTimeOffset createdAt
+    ) {
+        foreach (var transaction in transactions.Where(IsManualReviewRequired)) {
+            db.FraudCases.Add(new FraudCase {
+                Id = Guid.NewGuid(),
+                TransactionRecordId = transaction.Id,
+                Status = FraudCaseStatus.Open,
+                Summary = $"{transaction.Decision} decision for {transaction.Currency} {transaction.Amount:N2} at {transaction.Merchant}",
+                CreatedAt = createdAt
+            });
+        }
+    }
+
+    private static bool IsManualReviewRequired(TransactionRecord transaction) =>
+        transaction.Decision is TransactionDecision.Review or TransactionDecision.Blocked;
 
     private sealed record SeedUsers(
         UserProfile Alex,

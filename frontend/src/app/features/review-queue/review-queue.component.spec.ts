@@ -1,11 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { BehaviorSubject, of } from 'rxjs';
 import { RiskApiService } from '../../core/risk-api.service';
 import type { TransactionDetail, TransactionSummary } from '../../core/models';
 import { ReviewQueueComponent } from './review-queue.component';
 
 describe('ReviewQueueComponent', () => {
   let fixture: ComponentFixture<ReviewQueueComponent>;
+  let queryParamMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
   const summary: TransactionSummary = {
     id: 'tx-1',
@@ -68,9 +70,15 @@ describe('ReviewQueueComponent', () => {
   };
 
   beforeEach(async () => {
+    queryParamMap$ = new BehaviorSubject(convertToParamMap({}));
+
     await TestBed.configureTestingModule({
       imports: [ReviewQueueComponent],
-      providers: [{ provide: RiskApiService, useValue: apiMock }]
+      providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { queryParamMap: queryParamMap$.asObservable() } },
+        { provide: RiskApiService, useValue: apiMock }
+      ]
     }).compileComponents();
 
     apiMock.getTransactions.calls.reset();
@@ -115,6 +123,15 @@ describe('ReviewQueueComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Hana Patel');
     expect(fixture.nativeElement.textContent).toContain('device-2');
     expect(apiMock.getTransactionConnections).not.toHaveBeenCalledWith('tx-2');
+  });
+
+  it('opens the exact transaction from a transactionId query parameter', async () => {
+    queryParamMap$.next(convertToParamMap({ transactionId: secondSummary.id }));
+    await settleReviewQueue();
+
+    expect(fixture.componentInstance.selectedId()).toBe('tx-2');
+    expect(apiMock.getTransaction).toHaveBeenCalledWith('tx-2');
+    expect(fixture.nativeElement.textContent).toContain('Hana Patel');
   });
 
   it('opens a large graph dialog from the selected transaction panel', async () => {

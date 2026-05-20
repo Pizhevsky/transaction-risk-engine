@@ -1,0 +1,24 @@
+<section class="card filters">
+  <label>
+    Search
+    <input
+      [ngModel]="search"
+      (ngModelChange)="searchChange.emit($event)"
+      placeholder="User, merchant, or summary"
+      (keyup.enter)="applyFilters.emit()" />
+  </label>
+  <label>
+    Status
+    <select
+      [ngModel]="status"
+      (ngModelChange)="statusChange.emit($event); applyFilters.emit()">
+      <option value="all">All</option>
+      <option value="open">Open</option>
+      <option value="investigating">Investigating</option>
+      <option value="closed">Closed</option>
+      <option value="closed-approved">Closed approved</option>
+      <option value="closed-blocked">Closed blocked</option>
+    </select>
+  </label>
+  <button type="button" class="primary" (click)="applyFilters.emit()" [disabled]="loading">Apply</button>
+</section>

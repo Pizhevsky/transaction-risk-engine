@@ -1,0 +1,65 @@
+.page-header {
+  margin-bottom: 1.25rem;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--color-primary-strong);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h2 {
+  margin: 0.35rem 0 0;
+}
+
+.subtle {
+  color: var(--color-muted);
+}
+
+.workflow-note {
+  color: var(--color-text);
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+}
+
+.cases {
+  padding: 1.25rem;
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.case-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.empty {
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.status.error {
+  color: var(--color-danger);
+}
+
+@media (max-width: 900px) {
+  .table-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

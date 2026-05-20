@@ -1,0 +1,48 @@
+<div class="rule-main">
+  <label>
+    <span>Code</span>
+    <strong>{{ rule.code }}</strong>
+  </label>
+  <label>
+    <span>Description</span>
+    <input
+      type="text"
+      [ngModel]="draft.description"
+      (ngModelChange)="updateDescription($event)"
+      maxlength="300" />
+  </label>
+</div>
+
+<div class="rule-controls">
+  <label>
+    <span>Weight</span>
+    <input
+      type="number"
+      [ngModel]="draft.weight"
+      (ngModelChange)="updateWeight($event)"
+      min="0"
+      max="100" />
+  </label>
+  <label class="toggle">
+    <input
+      type="checkbox"
+      [ngModel]="draft.enabled"
+      (ngModelChange)="updateEnabled($event)" />
+    Enabled
+  </label>
+  <div class="rule-actions">
+    <button
+      type="button"
+      class="secondary"
+      (click)="resetRule.emit()"
+      [disabled]="saving || !dirty">
+      Reset
+    </button>
+    <button
+      type="button"
+      (click)="saveRule.emit()"
+      [disabled]="saving || !dirty || !valid">
+      {{ saving ? 'Saving...' : 'Save' }}
+    </button>
+  </div>
+</div>

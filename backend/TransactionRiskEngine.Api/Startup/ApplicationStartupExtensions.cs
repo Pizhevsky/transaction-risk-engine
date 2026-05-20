@@ -91,6 +91,7 @@ public static class ApplicationStartupExtensions {
     public static WebApplication UseApiPipeline(this WebApplication app) {
         app.UseExceptionHandler();
         app.UseMiddleware<CorrelationIdMiddleware>();
+        app.UseMiddleware<RequestTelemetryMiddleware>();
         app.UseRateLimiter();
         app.UseCors(FrontendCorsPolicy);
 

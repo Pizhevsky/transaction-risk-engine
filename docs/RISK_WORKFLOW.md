@@ -122,3 +122,20 @@ The Angular UI presents the stored state through:
 - readiness and outbox status.
 
 The UI reads from the API rather than recalculating risk decisions in the browser.
+
+## 10. Fraud Case Review
+
+Fraud cases represent the review workflow around transactions that reached `Review` or `Blocked`.
+
+A reviewer can:
+
+- move an open case to `Investigating`;
+- return an investigating case to `Open`;
+- close a case as approved;
+- close a case as blocked;
+- reopen a closed case for more investigation.
+
+The review action can carry an optional note. Status changes are audited and closing a case records `ClosedAt`. This workflow does not change the original transaction decision. It records the manual review outcome and keeps it separate from deterministic scoring.
+
+The frontend protects this workflow with per-case pending state. While a case update is saving, all actions for that case are disabled and only the selected action shows `Saving...`; other cases remain interactive.
+

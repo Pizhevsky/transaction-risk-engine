@@ -1,0 +1,57 @@
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Case review</p>
+    <h2>Fraud cases</h2>
+    <p class="subtle">Cases opened by review or blocked decisions and resolved through a manual review workflow.</p>
+  </div>
+</header>
+
+<section class="card workflow-note">
+  <strong>Workflow:</strong>
+  the risk engine opens cases automatically. A reviewer can move a case to investigating, close it as approved, close it as blocked, or reopen a closed case when new evidence appears.
+</section>
+
+<app-fraud-case-filters
+  [search]="search()"
+  [status]="status()"
+  [loading]="loading()"
+  (searchChange)="search.set($event)"
+  (statusChange)="status.set($event)"
+  (applyFilters)="applyFilters()" />
+
+@if (error()) {
+  <p class="status error">{{ error() }}</p>
+}
+
+<section class="card cases">
+  <div class="table-header">
+    <div>
+      <strong>{{ rangeText() }}</strong>
+      @if (loading()) {
+        <span class="subtle"> Loading...</span>
+      }
+    </div>
+    <nav class="pager" aria-label="Fraud case pagination">
+      <button type="button" (click)="previousPage()" [disabled]="offset() === 0 || loading()">Previous</button>
+      <button type="button" (click)="nextPage()" [disabled]="offset() + limit() >= totalCount() || loading()">Next</button>
+    </nav>
+  </div>
+
+  @if (cases().length > 0) {
+    <div class="case-list">
+      @for (item of cases(); track item.id) {
+        @let feedback = feedbackFor(item.id);
+        <app-fraud-case-card
+          [item]="item"
+          [note]="noteFor(item)"
+          [pendingStatus]="pendingStatusFor(item)"
+          [feedback]="feedback.message"
+          [feedbackTone]="feedback.tone"
+          (noteChange)="updateNote(item.id, $event)"
+          (statusChange)="updateStatus(item, $event)" />
+      }
+    </div>
+  } @else {
+    <p class="empty">No fraud cases match the current filters.</p>
+  }
+</section>

@@ -10,9 +10,7 @@ public static class RiskRuleApplicator {
         }
 
         var appliedScore = ResolveAppliedScore(signal.Code, signal.BaseScore, rules);
-        return appliedScore == 0
-            ? null
-            : signal with { Score = appliedScore };
+        return signal with { Score = appliedScore };
     }
 
     public static int ResolveAppliedScore(

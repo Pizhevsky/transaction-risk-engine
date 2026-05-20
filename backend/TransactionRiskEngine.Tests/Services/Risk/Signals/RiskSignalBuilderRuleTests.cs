@@ -11,7 +11,7 @@ namespace TransactionRiskEngine.Tests;
 
 public sealed class RiskSignalBuilderRuleTests {
     [Fact]
-    public async Task Disabled_rule_removes_matching_signal() {
+    public async Task Disabled_rule_keeps_detector_output_with_zero_applied_score() {
         await using var db = CreateDb();
         db.RiskRules.AddRange(
             new RiskRule { Code = "HIGH_AMOUNT", Description = "High amount", Weight = 30, Enabled = true },
@@ -49,7 +49,9 @@ public sealed class RiskSignalBuilderRuleTests {
             CancellationToken.None
         );
 
-        Assert.DoesNotContain(signals, x => x.Code == "NEW_DEVICE");
+        var newDeviceSignal = Assert.Single(signals, x => x.Code == "NEW_DEVICE");
+        Assert.Equal(15, newDeviceSignal.BaseScore);
+        Assert.Equal(0, newDeviceSignal.Score);
     }
 
     [Fact]
@@ -217,6 +219,57 @@ public sealed class RiskSignalBuilderRuleTests {
         Assert.Contains("flagged-2", graphSignal.Evidence);
     }
 
+
+    [Fact]
+    public async Task Amount_history_uses_same_currency_only() {
+        await using var db = CreateDb();
+        var userId = Guid.NewGuid();
+
+        db.RiskRules.AddRange(
+            new RiskRule { Code = "HIGH_AMOUNT", Description = "High amount", Weight = 30, Enabled = true },
+            new RiskRule { Code = "NEW_DEVICE", Description = "New device", Weight = 15, Enabled = true },
+            new RiskRule { Code = "VELOCITY_SPIKE", Description = "Velocity", Weight = 20, Enabled = true },
+            new RiskRule { Code = "FAILED_ATTEMPTS", Description = "Failed", Weight = 20, Enabled = true },
+            new RiskRule { Code = "GRAPH_RISK", Description = "Graph", Weight = 25, Enabled = true }
+        );
+        db.Transactions.AddRange(
+            History(userId, 10, "USD"),
+            History(userId, 10, "USD"),
+            History(userId, 10, "USD")
+        );
+        await db.SaveChangesAsync();
+
+        var builder = CreateBuilder(db);
+        var user = new UserProfile { Id = userId, DisplayName = "Alex" };
+        var request = new AnalyseTransactionRequest(
+            user.Id,
+            900,
+            "NZD",
+            "Local Market",
+            "card-1",
+            "4242",
+            "device-known",
+            "203.0.113.10",
+            Successful: true,
+            CreatedAt: DateTimeOffset.UtcNow
+        );
+
+        var signals = await builder.BuildAsync(
+            new RiskSignalContext(
+                user,
+                request,
+                new Device { Id = Guid.NewGuid(), Fingerprint = "device-known" },
+                new PaymentCard { Id = Guid.NewGuid(), Fingerprint = "card-1", Last4 = "4242" },
+                new IpAddressRecord { Id = Guid.NewGuid(), Address = "203.0.113.10" },
+                IsNewDevice: false,
+                CreatedAt: DateTimeOffset.UtcNow
+            ),
+            CancellationToken.None
+        );
+
+        Assert.DoesNotContain(signals, x => x.Code == "HIGH_AMOUNT");
+    }
+
     private static RiskRuleCatalog CreateCatalog(AppDbContext db) => new(
         db,
         new MemoryCache(new MemoryCacheOptions()),
@@ -241,11 +294,13 @@ public sealed class RiskSignalBuilderRuleTests {
         return new AppDbContext(options);
     }
 
-    private static TransactionRecord History(Guid userId, decimal amount) => new() {
+    private static TransactionRecord History(Guid userId, decimal amount) => History(userId, amount, "NZD");
+
+    private static TransactionRecord History(Guid userId, decimal amount, string currency) => new() {
         Id = Guid.NewGuid(),
         UserProfileId = userId,
         Amount = amount,
-        Currency = "NZD",
+        Currency = currency,
         Merchant = "History",
         Successful = true,
         CreatedAt = DateTimeOffset.UtcNow.AddDays(-1),

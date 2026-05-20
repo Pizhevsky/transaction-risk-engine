@@ -276,6 +276,7 @@ namespace TransactionRiskEngine.Api.Migrations
                     TransactionRecordId = table.Column<Guid>(type: "uuid", nullable: false),
                     Status = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
                     Summary = table.Column<string>(type: "character varying(400)", maxLength: 400, nullable: false),
+                    ReviewNote = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     ClosedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
                 },

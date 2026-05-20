@@ -14,7 +14,7 @@ public sealed class TransactionApiIntegrationTests(TransactionRiskEngineApiFacto
 
         var request = new AnalyseTransactionRequest(
             SeedData.AlexId,
-            1250,
+            1_000_000,
             "NZD",
             "Online Electronics Store",
             "card-shared-risk-001",

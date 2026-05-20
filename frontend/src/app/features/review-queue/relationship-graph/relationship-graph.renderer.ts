@@ -60,6 +60,19 @@ const graphStyle: Stylesheet[] = [
     }
   },
   {
+    selector: 'node[type = "Device"], node[type = "Card"], node[type = "IP"]',
+    style: {
+      'background-color': '#0f9f8f'
+    }
+  },
+  {
+    selector: 'node[?risky]',
+    style: {
+      'background-color': '#dc2626',
+      color: '#7f1d1d'
+    }
+  },
+  {
     selector: 'node[?focused]',
     style: {
       label: 'data(label)',
@@ -74,17 +87,9 @@ const graphStyle: Stylesheet[] = [
     }
   },
   {
-    selector: 'node[?risky]',
-    style: {
-      'background-color': '#ef4444',
-      color: '#7f1d1d'
-    }
-  },
-  {
     selector: 'node[?risky][?focused]',
     style: {
-      'background-color': '#7f1d1d',
-      'border-color': '#fbbf24',
+      'border-color': '#dc2626',
       color: '#0f172a'
     }
   },

@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Subscription, finalize, forkJoin, timeout } from 'rxjs';
+import { Subscription, finalize, timeout } from 'rxjs';
 import type { HealthStatus, RiskEvaluationJob } from '../../core/models';
 import { RiskApiService } from '../../core/risk-api.service';
 
@@ -22,9 +22,18 @@ export class OperationsComponent implements OnInit, OnDestroy {
 
   readonly health = signal<HealthStatus | null>(null);
   readonly jobs = signal<RiskEvaluationJob[]>([]);
-  readonly loading = signal(false);
+  readonly healthLoading = signal(false);
+  readonly jobsLoading = signal(false);
+  readonly loading = computed(() => this.healthLoading() || this.jobsLoading());
   readonly evaluating = signal(false);
-  readonly error = signal('');
+  readonly healthError = signal('');
+  readonly jobsError = signal('');
+  readonly evaluationError = signal('');
+  readonly error = computed(() =>
+    [this.healthError(), this.jobsError(), this.evaluationError()]
+      .filter(Boolean)
+      .join(' ')
+  );
   readonly evaluationMessage = signal('');
   readonly lastRefreshedAt = signal<Date | null>(null);
   evaluationBatchSize = 250;
@@ -40,29 +49,51 @@ export class OperationsComponent implements OnInit, OnDestroy {
 
   refresh(): void {
     this.refreshSubscription?.unsubscribe();
-    this.loading.set(true);
-    this.error.set('');
+    this.healthError.set('');
+    this.jobsError.set('');
+    this.evaluationError.set('');
 
-    this.refreshSubscription = forkJoin({
-      health: this.api.getHealthStatus(),
-      jobs: this.api.getEvaluationJobs()
-    }).pipe(
+    const refreshSubscription = new Subscription();
+    this.refreshSubscription = refreshSubscription;
+
+    this.loadHealth(refreshSubscription);
+    this.loadJobs(refreshSubscription);
+  }
+
+  private loadHealth(refreshSubscription: Subscription): void {
+    this.healthLoading.set(true);
+
+    refreshSubscription.add(this.api.getHealthStatus().pipe(
       timeout(OperationsComponent.RefreshTimeoutMs),
-      finalize(() => {
-        this.loading.set(false);
-        this.refreshSubscription = undefined;
-      })
+      finalize(() => this.healthLoading.set(false))
     ).subscribe({
-      next: ({ health, jobs }) => {
+      next: (health) => {
         this.health.set(health);
+        this.lastRefreshedAt.set(new Date());
+      },
+      error: (error) => {
+        console.error('Could not load runtime status', error);
+        this.healthError.set('Could not load runtime status.');
+      }
+    }));
+  }
+
+  private loadJobs(refreshSubscription: Subscription): void {
+    this.jobsLoading.set(true);
+
+    refreshSubscription.add(this.api.getEvaluationJobs().pipe(
+      timeout(OperationsComponent.RefreshTimeoutMs),
+      finalize(() => this.jobsLoading.set(false))
+    ).subscribe({
+      next: (jobs) => {
         this.jobs.set(jobs);
         this.lastRefreshedAt.set(new Date());
       },
       error: (error) => {
-        console.error('Could not load operational status', error);
-        this.error.set('Could not load operational status.');
+        console.error('Could not load evaluation jobs', error);
+        this.jobsError.set('Could not load evaluation jobs.');
       }
-    });
+    }));
   }
 
   runEvaluate(): void {
@@ -71,8 +102,8 @@ export class OperationsComponent implements OnInit, OnDestroy {
     }
 
     this.evaluating.set(true);
-    this.error.set('');
-    this.evaluationMessage.set('Starting rule evaluation...');
+    this.evaluationError.set('');
+    this.evaluationMessage.set('Running rule evaluation...');
 
     const batchSize = Math.max(1, Math.min(1000, Number(this.evaluationBatchSize) || 250));
     const reason = this.evaluationReason.trim() || 'Manual evaluation from operations dashboard';
@@ -82,12 +113,12 @@ export class OperationsComponent implements OnInit, OnDestroy {
       finalize(() => this.evaluating.set(false))
     ).subscribe({
       next: (result) => {
-        this.evaluationMessage.set(`Started evaluation job ${result.jobId}. Processed ${result.processedCount} and changed ${result.changedCount}.`);
+        this.evaluationMessage.set(`Finished evaluation job ${result.jobId}. Processed ${result.processedCount} and changed ${result.changedCount}.`);
         this.refresh();
       },
       error: (error) => {
         console.error('Could not start rule evaluation', error);
-        this.error.set('Could not start rule evaluation.');
+        this.evaluationError.set('Could not start rule evaluation.');
         this.evaluationMessage.set('');
       }
     });

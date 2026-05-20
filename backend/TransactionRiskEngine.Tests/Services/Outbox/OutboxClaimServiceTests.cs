@@ -78,6 +78,31 @@ public sealed class OutboxClaimServiceTests {
         Assert.NotNull(reloaded.NextAttemptAt);
     }
 
+
+    [Fact]
+    public async Task RequeueStaleProcessingMessages_does_not_requeue_fresh_processing_locks() {
+        await using var connection = new SqliteConnection("DataSource=:memory:");
+        await connection.OpenAsync();
+        await using var db = CreateDb(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var fresh = Message(OutboxMessageStatus.Processing, DateTimeOffset.UtcNow.AddMinutes(-1));
+        fresh.LockedAt = DateTimeOffset.UtcNow;
+        fresh.LockedBy = "active-worker";
+
+        db.OutboxMessages.Add(fresh);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(lockTimeoutSeconds: 60);
+        var count = await service.RequeueStaleProcessingMessagesAsync(db, CancellationToken.None);
+
+        var reloaded = await db.OutboxMessages.FindAsync(fresh.Id);
+        Assert.Equal(0, count);
+        Assert.Equal(OutboxMessageStatus.Processing, reloaded!.Status);
+        Assert.Equal("active-worker", reloaded.LockedBy);
+        Assert.NotNull(reloaded.LockedAt);
+    }
+
     private static OutboxClaimService CreateService(int batchSize = 25, int lockTimeoutSeconds = 120) =>
         new(Options.Create(new OutboxDispatcherOptions {
             BatchSize = batchSize,

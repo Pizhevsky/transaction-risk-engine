@@ -57,6 +57,7 @@ export interface AnalyseTransactionResponse {
   decision: string;
   signals: RiskSignal[];
   createdAt: string;
+  idempotentReplay?: boolean;
 }
 
 export interface GraphNode {
@@ -134,3 +135,26 @@ export interface RiskEvaluationJob {
   createdAt: string;
   completedAt?: string | null;
 }
+
+export type FraudCaseStatus = 'Open' | 'Investigating' | 'ClosedApproved' | 'ClosedBlocked';
+
+export interface FraudCase {
+  id: string;
+  transactionId: string;
+  userName: string;
+  amount: number;
+  currency: string;
+  riskScore: number;
+  status: FraudCaseStatus;
+  summary: string;
+  reviewNote?: string | null;
+  createdAt: string;
+  closedAt?: string | null;
+}
+
+export interface UpdateFraudCaseStatusRequest {
+  status: FraudCaseStatus;
+  note?: string | null;
+}
+
+export type FraudCaseStatusFilter = 'all' | 'open' | 'investigating' | 'closed' | 'closed-approved' | 'closed-blocked';

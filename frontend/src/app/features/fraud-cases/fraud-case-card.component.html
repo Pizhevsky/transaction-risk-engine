@@ -1,0 +1,75 @@
+<article class="case-card">
+  <div class="case-main">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">{{ item.createdAt | date:'medium' }}</p>
+        <h3>{{ item.userName }}</h3>
+      </div>
+      <span class="status-pill" [class.closed]="item.status.startsWith('Closed')">{{ item.status }}</span>
+    </header>
+
+    <div class="case-metrics">
+      <div>
+        <span>Amount</span>
+        <strong>{{ item.currency }} {{ item.amount | number:'1.2-2' }}</strong>
+      </div>
+      <div>
+        <span>Risk score</span>
+        <strong>{{ item.riskScore }}/100</strong>
+      </div>
+      @if (item.closedAt) {
+        <div>
+          <span>Closed</span>
+          <strong>{{ item.closedAt | date:'short' }}</strong>
+        </div>
+      }
+    </div>
+
+    <p class="summary">{{ item.summary }}</p>
+    <a
+      class="review-link"
+      [routerLink]="['/review']"
+      [queryParams]="{ transactionId: item.transactionId }">
+      Open transaction in review queue
+    </a>
+  </div>
+
+  <aside class="case-actions">
+    @if (allowsActionNote()) {
+      <label>
+        Action note
+        <input
+          [ngModel]="note"
+          (ngModelChange)="noteChange.emit($event)"
+          maxlength="500"
+          placeholder="Optional note for the status change"
+          [disabled]="isUpdating()" />
+      </label>
+    } @else {
+      <div class="case-note-readonly">
+        <span>Review note</span>
+        <p>{{ item.reviewNote || 'No review note recorded.' }}</p>
+      </div>
+    }
+
+    <div class="actions">
+      @for (action of actionsForFraudCase(item); track action.status) {
+        <button
+          type="button"
+          [class.primary]="action.style === 'primary'"
+          [class.danger]="action.style === 'danger'"
+          (click)="handleActionClick(action.status)"
+          [disabled]="isUpdating()"
+          [attr.aria-busy]="isActionUpdating(action.status) ? 'true' : null">
+          {{ isActionUpdating(action.status) ? 'Saving...' : action.label }}
+        </button>
+      }
+    </div>
+
+    <p class="case-feedback" aria-live="polite" [class.error]="feedbackTone === 'error'">
+      @if (feedback) {
+        {{ feedback }}
+      }
+    </p>
+  </aside>
+</article>

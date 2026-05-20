@@ -23,9 +23,13 @@ public sealed class RiskSignalBuilder(
     }
 
     private async Task<RiskSignal?> BuildAmountSignalAsync(RiskSignalContext context, CancellationToken cancellationToken) {
+        var currency = context.Request.Currency.ToUpperInvariant();
         var history = await db.Transactions
             .AsNoTracking()
-            .Where(x => x.UserProfileId == context.User.Id && x.Successful && x.CreatedAt < context.CreatedAt)
+            .Where(x => x.UserProfileId == context.User.Id &&
+                x.Successful &&
+                x.Currency == currency &&
+                x.CreatedAt < context.CreatedAt)
             .OrderByDescending(x => x.CreatedAt)
             .Take(50)
             .ToListAsync(cancellationToken);
@@ -77,10 +81,6 @@ public sealed class RiskSignalBuilder(
         IReadOnlyDictionary<string, RiskRuleSnapshot> rules,
         CancellationToken cancellationToken
     ) {
-        if (!rules.TryGetValue("GRAPH_RISK", out var graphRule) || !graphRule.Enabled) {
-            return [];
-        }
-
         var evidence = new List<string>();
 
         if (context.Device.IsFlagged || context.Card.IsFlagged || context.IpAddress.IsFlagged) {

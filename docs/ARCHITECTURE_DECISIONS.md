@@ -50,11 +50,17 @@ The ERD is centered on users and transactions. Transactions own risk events, opt
 
 `AuditLogs.TransactionRecordId` is optional because audit logs can describe non-transaction events, but transaction audit entries use a real foreign key so the relationship is visible in database tools. `RiskRules`, `OutboxMessages`, and `RiskEvaluationJobs` remain standalone operational tables.
 
-## Rule Evaluating
+## Rule Evaluation
 
 Rule evaluation processes a bounded batch of recent transactions. It recalculates applied risk-event scores from persisted event codes and current rule configuration, then updates transaction decisions.
 
-The operation is deterministic for the stored event set. It does not replay historical graph state or velocity windows. For high-amount events, it can upgrade stored detector severity when the saved amount maps to a stronger amount-risk band.
+The operation is deterministic for the stored event set. It does not replay historical graph state or velocity windows. Detector output is retained even when a rule is disabled by storing an applied score of `0`. For high-amount events, evaluation can upgrade stored detector severity when the saved amount maps to a stronger same-currency amount-risk band. Fraud cases are reconciled when risk moves back to Approved or rises again.
+
+## Fraud Case Lifecycle
+
+Fraud cases are treated as review records, not as another copy of the risk decision. The scoring workflow can open or reconcile a case, while the fraud-case endpoint supports manual review transitions such as `Investigating`, `ClosedApproved`, and `ClosedBlocked`.
+
+Status changes are audited. A closed case receives `ClosedAt`; reopening or returning to investigation clears it. The frontend keeps status updates local to one case at a time: the active case is disabled during a save, the clicked action shows `Saving...`, and other cases remain usable.
 
 ## Graph Traversal Guardrails
 
@@ -65,7 +71,7 @@ Graph risk is evaluated through bounded application-side BFS. The service limits
 - total visible nodes;
 - edges expanded per node.
 
-These limits keep request cost predictable for local and moderate datasets. A larger deployment could replace this with PostgreSQL recursive CTEs or a dedicated graph store while keeping the API contract stable.
+These limits keep request cost predictable for local and moderate datasets. The UI graph path may use a short cache, but scoring uses a fresh bounded graph load so newly created links are not hidden by stale UI cache. A larger deployment could replace this with PostgreSQL recursive CTEs or a dedicated graph store while keeping the API contract stable.
 
 ## Outbox Dispatch
 
@@ -83,8 +89,20 @@ The API exposes:
 
 Readiness returns a degraded status when the database is unavailable or the outbox backlog crosses configured safety conditions.
 
+## Request Observability
+
+Every request receives or generates an `X-Correlation-Id`. The request telemetry middleware logs method, path, status code, elapsed time, and correlation ID under the existing logging scope. This keeps local diagnostics dependency-free while still making request flow traceable in terminal logs or hosted log aggregation.
+
+## Continuous Integration
+
+GitHub Actions runs backend build/tests, PostgreSQL integration tests through Testcontainers, and frontend build/tests. Integration tests are skipped during normal local test runs unless `RUN_POSTGRES_INTEGRATION_TESTS=true` is set, but CI has a dedicated job that enables them.
+
 ## Frontend Structure
 
 Angular feature folders keep component logic, template, styles, and tests together. Routes are lazy-loaded so graph visualisation code is loaded only when the review area needs it.
 
-The review queue uses RxJS streams to combine filters, pagination, refreshes, and detail loading. Request switching prevents stale detail responses from replacing the latest selected transaction.
+The review queue uses RxJS streams to combine filters, pagination, and detail loading. Filters, the transaction table, selected detail, and graph rendering are split into focused standalone components so the route component owns orchestration instead of markup-heavy UI details. A direct `transactionId` query parameter opens that exact transaction in the detail panel, which lets fraud-case links jump to the stored evidence without depending on the current page.
+
+## Fraud Case Review Lifecycle
+
+Fraud cases are opened automatically when scoring produces a review or blocked decision. Manual status changes are handled separately from scoring so the original risk result remains auditable. A reviewer can move a case through `Open`, `Investigating`, `ClosedApproved`, and `ClosedBlocked`. Each manual status change writes an audit log entry. This keeps automated detection and human review as separate concerns.
